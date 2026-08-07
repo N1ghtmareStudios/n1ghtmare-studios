@@ -8,7 +8,16 @@
 <body>
 <script>
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-  addEventListener('pageshow', function(){ if (!location.hash) scrollTo(0, 0); });
+  function toTop(){
+    if (location.hash) return;
+    var de=document.documentElement, old=de.style.scrollBehavior;
+    de.style.scrollBehavior='auto';           /* hoppa direkt, ingen smooth-animation */
+    window.scrollTo(0,0); document.body.scrollTop=0; de.scrollTop=0;
+    de.style.scrollBehavior=old;
+  }
+  addEventListener('DOMContentLoaded', toTop);
+  addEventListener('load', toTop);
+  addEventListener('pageshow', toTop);
 </script>
 <style>
 /* ════════════════════════════════════════════════════════════════
@@ -59,7 +68,7 @@
 }
 
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth; overflow-anchor:none}
 @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} *{transition:none!important} }
 
 body{
