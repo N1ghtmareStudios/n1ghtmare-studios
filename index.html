@@ -6,6 +6,10 @@
 <title>N1ghtmare Studios — independent game studio</title>
 </head>
 <body>
+<script>
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  addEventListener('pageshow', function(){ if (!location.hash) scrollTo(0, 0); });
+</script>
 <style>
 /* ════════════════════════════════════════════════════════════════
    TOKENS — dark is the home theme; light is a full parchment set,
