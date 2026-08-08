@@ -647,7 +647,7 @@ const PALETTES = [
   { name:"Ice",  stops:[[0,3,5,14],[.30,12,34,78],[.58,28,120,180],[.82,120,214,236],[1,236,252,255]] },
   { name:"Spore", stops:[[0,4,8,6],[.30,18,54,28],[.56,54,130,44],[.80,168,214,86],[1,240,255,206]] },
   { name:"Neon", stops:[[0,6,3,12],[.26,70,10,86],[.50,190,20,120],[.74,244,66,150],[.90,255,150,110],[1,255,240,220]] },
-  { name:"Aurora", stops:[[0,2,6,16],[.25,10,60,90],[.45,18,150,130],[.64,90,220,150],[.82,150,140,235],[1,240,236,255]] },
+  { name:"Aurora", stops:[[0,2,5,12],[.30,8,45,70],[.55,14,105,100],[.75,52,165,125],[.90,96,115,190],[1,190,215,235]] },
   { name:"Blood", stops:[[0,10,2,4],[.30,58,8,16],[.55,138,18,30],[.78,228,70,50],[.92,255,160,90],[1,255,236,210]] },
 ];
 let palIdx = 1;   // Ice är sajtens standard
@@ -1328,7 +1328,7 @@ function display(){
   gl.uniform1i(uDisplay.u_lutB, 3);
   gl.uniform1f(uDisplay.u_warOn, war ? 1 : 0);
   gl.uniform3f(uDisplay.u_view, view.cx, view.cy, view.z);
-  gl.uniform2f(uDisplay.u_bloom, 0.55 * audioBloom, 3.0);   // neonglöd: styrka, mip-nivå (basen pumpar)
+  gl.uniform2f(uDisplay.u_bloom, (kal ? 0.38 : 0.55) * audioBloom, 3.0);   // neonglöd; dämpad i spegelläget
   gl.uniform2f(uDisplay.u_asp, W/H, cvs.width/Math.max(1, cvs.height));
   gl.uniform1f(uDisplay.u_kal, kal);
   // packa aktiva chockvågor; utgångna faller ur listan här
