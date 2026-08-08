@@ -147,12 +147,12 @@
 
 <div id="mark">
   <h1>Tendril</h1>
-  <p>Dra för att mata — nyp eller rulla för att zooma</p>
+  <p>Draw to feed the colony — pinch or scroll to zoom</p>
 </div>
 
 <div id="teach">
-  Varje prick är en agent. Den inringade känner av <b>tre punkter</b> framför sig
-  och svänger mot den starkaste doften.
+  Every dot is an agent. The circled one senses <b>three points</b> ahead of itself
+  and turns toward the strongest scent.
 </div>
 
 <div id="gamehud">
@@ -1270,8 +1270,8 @@ function endGame(){
   gstate = 2;
   best = Math.max(best, score);
   try { localStorage.setItem("tendril_best", best); } catch(e){}
-  document.getElementById("goScore").textContent = "Poäng " + score;
-  document.getElementById("goBest").textContent  = "Bästa " + best;
+  document.getElementById("goScore").textContent = "Score " + score;
+  document.getElementById("goBest").textContent  = "Best " + best;
   document.body.classList.add("gameover");
   refreshPlay();
 }
@@ -1533,6 +1533,9 @@ toggle.onclick = () => {
   toggle.style.transform = open ? `translateY(${-(panel.offsetHeight + 14)}px)` : "";
   document.body.classList.add("touched");
 };
+// Site version: start with the controls open so visitors can find them.
+panel.classList.add("open");
+requestAnimationFrame(() => { toggle.style.transform = `translateY(${-(panel.offsetHeight + 14)}px)`; });
 
 addEventListener("resize", () => {
   clearTimeout(allocate._t);
