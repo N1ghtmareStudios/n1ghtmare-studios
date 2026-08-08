@@ -159,15 +159,15 @@
 <div id="gamehud">
   <div id="glives">♥♥♥</div>
   <div id="gscore">0</div>
-  <div id="ghint">NIVÅ 1</div>
+  <div id="ghint">LVL 1</div>
 </div>
 
 <div id="gameover">
   <div class="go-card">
-    <div class="go-title">Slut</div>
-    <div id="goScore" class="go-score">Poäng 0</div>
-    <div id="goBest" class="go-best">Bästa 0</div>
-    <button id="again">Spela igen</button>
+    <div class="go-title">Game over</div>
+    <div id="goScore" class="go-score">Score 0</div>
+    <div id="goBest" class="go-best">Best 0</div>
+    <button id="again">Play again</button>
   </div>
 </div>
 
@@ -189,7 +189,7 @@
   <div class="sl"><label>Decay</label><input id="sDecay" type="range" min="80" max="99" step="1"><output></output></div>
   <div class="sl"><label>Agents</label><input id="sCount" type="range" min="5" max="300" step="5"><output></output></div>
   <div class="foot">
-    <button id="play" style="display:none">Play</button>
+    <button id="play">Play</button>
     <button id="reset">Reseed</button>
     <button id="palette">Color: Ice</button>
     <button id="sparks">Sparks</button>
@@ -1021,10 +1021,21 @@ function liftPointer(e){
   if(pointers.size === 0){
     if(tapCandidate){                       // tap → aktivt verktyg; dubbeltryck → återställ vyn
       const g = toGrid(e);
-      if(tool === 0)      spawnBurst(e);
-      else if(tool === 1) bombAt(g.x, g.y);
-      else if(tool === 2) addForce(g.x, g.y, 2, 3.5, 3200);   // virveln snurrar ~3 s
-      else                addForce(g.x, g.y, 3, 3.0, 2600);   // kollaps → supernova
+      // under spel har abilities cooldown — annars fritt fram
+      let ok = true;
+      if(tool > 0 && gstate === 1){
+        const pnow = performance.now();
+        if(pnow - toolLast[tool] < TOOL_CD[tool]){
+          ok = false;
+          pops.push({ ux: g.x/W, uy: g.y/H, age: 0, txt: "COOLDOWN" });
+        } else toolLast[tool] = pnow;
+      }
+      if(ok){
+        if(tool === 0)      spawnBurst(e);
+        else if(tool === 1) bombAt(g.x, g.y);
+        else if(tool === 2) addForce(g.x, g.y, 2, 3.5, 3200);   // virveln snurrar ~3 s
+        else                addForce(g.x, g.y, 3, 3.0, 2600);   // kollaps → supernova
+      }
       const now = e.timeStamp || 0;
       if(now - lastTap < 300) resetView();
       lastTap = now;
@@ -1392,6 +1403,13 @@ let curLife = 10, activeCount = 2, hurt = 0, probeTick = 0;
 const MAXSPORES = 5, ARM = 0.18, REACH = 0.60;
 const START_LIVES = 3;
 const spores = new Array(MAXSPORES).fill(null);
+// Miner: röda sporer i probeplats 5–7. Växer en tråd in i en mine
+//förlorar man ett liv och området fräts bort — rotexplosion.
+const MAXMINES = 3, MINE_HIT = 0.50;
+const mines = new Array(MAXMINES).fill(null);
+// Abilities har cooldown under spel — utanför spelet är de fria.
+const TOOL_CD = { 1: 6000, 2: 10000, 3: 16000 };
+const toolLast = { 1: -1e9, 2: -1e9, 3: -1e9 };
 const pops = [];
 const glivesEl = document.getElementById("glives");
 const gscoreEl = document.getElementById("gscore");
@@ -1402,11 +1420,29 @@ function rollSpore(){
   return { ux: 0.08 + Math.random()*0.84, uy: 0.08 + Math.random()*0.84,
            pending: true, armed: false, life: curLife, maxlife: curLife };
 }
+function rollMine(){
+  return { ux: 0.08 + Math.random()*0.84, uy: 0.08 + Math.random()*0.84,
+           pending: true, armed: false };
+}
+// antal miner växer med nivån: inga på nivå 1, sen en till varannan nivå
+function syncMines(){
+  const n = Math.min(MAXMINES, Math.max(0, level - 1));
+  for(let i=0;i<MAXMINES;i++) mines[i] = i < n ? (mines[i] || rollMine()) : null;
+}
+function mineHit(i){
+  const m = mines[i];
+  loseLife();
+  // rotexplosion: fräter bort nätet runt minan + röd chockvåg
+  depositBlob(m.ux*W, m.uy*H, Math.max(24, Math.min(W,H)*0.07), -1.4);
+  pushWave(m.ux*W, m.uy*H);
+  pops.push({ ux:m.ux, uy:m.uy, age:0 });
+  mines[i] = rollMine();
+}
 function hearts(){ return "♥".repeat(Math.max(0,lives)) + "♡".repeat(Math.max(0, START_LIVES-lives)); }
 function gameHud(){
   glivesEl.textContent = hearts();
   gscoreEl.textContent = combo > 1 ? `${score}   ·   ${combo}×` : `${score}`;
-  ghintEl.textContent  = `NIVÅ ${level}`;
+  ghintEl.textContent  = `LVL ${level}`;
 }
 function refreshPlay(){
   const b = document.getElementById("play");
@@ -1423,11 +1459,13 @@ function startGame(){
   document.body.classList.add("gaming");
   resetView();
   for(let i=0;i<MAXSPORES;i++) spores[i] = i < activeCount ? rollSpore() : null;
+  syncMines();
   pops.length = 0; gameHud(); refreshPlay();
 }
 function stopGame(){
   gstate = 0;
   for(let i=0;i<MAXSPORES;i++) spores[i] = null;
+  for(let i=0;i<MAXMINES;i++) mines[i] = null;
   pops.length = 0;
   document.body.classList.remove("gaming", "gameover");
   refreshPlay();
@@ -1447,7 +1485,9 @@ function levelUp(){
   const na = Math.min(MAXSPORES, 2 + Math.floor(level/2));
   for(let i=activeCount;i<na;i++) if(!spores[i]) spores[i] = rollSpore();
   activeCount = na;
-  pops.push({ ux:0.5, uy:0.42, age:0, txt:`Nivå ${level}`, big:true });
+  syncMines();
+  pushWave(0.5*W, 0.42*H);
+  pops.push({ ux:0.5, uy:0.42, age:0, txt:`Level ${level}`, big:true });
 }
 function loseLife(){
   lives -= 1; combo = 0; hurt = 1;
@@ -1477,6 +1517,7 @@ function collect(i){
   pops.push({ ux:s.ux, uy:s.uy, age:0 });
   pops.push({ ux:s.ux, uy:s.uy, age:0, txt:`+${gain}` });
   depositBlob(s.ux*W, s.uy*H, Math.max(16, Math.min(W,H)*0.04), 2.4); // belöningsblomma
+  pushWave(s.ux*W, s.uy*H);                     // kromatisk chockvåg vid varje collect
   spores[i] = rollSpore();
   if(collects % 5 === 0) levelUp();
   gameHud();
@@ -1484,6 +1525,7 @@ function collect(i){
 function gameProbe(){
   const arr = new Float32Array(16);
   for(let i=0;i<MAXSPORES;i++){ const s=spores[i]; arr[i*2]=s?s.ux:-1; arr[i*2+1]=s?s.uy:-1; }
+  for(let i=0;i<MAXMINES;i++){ const m=mines[i]; const j=MAXSPORES+i; arr[j*2]=m?m.ux:-1; arr[j*2+1]=m?m.uy:-1; }
   gl.bindFramebuffer(gl.FRAMEBUFFER, probeFBO);
   gl.viewport(0,0,8,1);
   gl.useProgram(progProbe);
@@ -1494,7 +1536,7 @@ function gameProbe(){
   gl.uniform1i(uProbe.u_level, 1);
   gl.disable(gl.BLEND);
   gl.bindVertexArray(emptyVAO);
-  gl.drawArrays(gl.POINTS, 0, MAXSPORES);
+  gl.drawArrays(gl.POINTS, 0, 8);
   gl.bindVertexArray(null);
   gl.readPixels(0,0,8,1, gl.RGBA, gl.UNSIGNED_BYTE, probeBuf);
   for(let i=0;i<MAXSPORES;i++){
@@ -1505,6 +1547,16 @@ function gameProbe(){
       else { s.ux = 0.08 + Math.random()*0.84; s.uy = 0.08 + Math.random()*0.84; }  // ligg inte på en åder
     } else if(s.armed && tone >= REACH){
       collect(i);
+    }
+  }
+  for(let i=0;i<MAXMINES;i++){
+    const m = mines[i]; if(!m) continue;
+    const tone = probeBuf[(MAXSPORES+i)*4] / 255;
+    if(m.pending){
+      if(tone < ARM){ m.pending = false; m.armed = true; }
+      else { m.ux = 0.08 + Math.random()*0.84; m.uy = 0.08 + Math.random()*0.84; }
+    } else if(m.armed && tone >= MINE_HIT){
+      mineHit(i);
     }
   }
 }
@@ -1526,6 +1578,28 @@ function updateGame(dt){
   }
 }
 function drawSpores(){
+  // miner: röd puls med kryss — håll trådarna borta
+  for(let i=0;i<MAXMINES;i++){
+    const m = mines[i]; if(!m || !m.armed) continue;
+    const [px, py] = toPx(m.ux*W, m.uy*H);
+    const pulse = 0.6 + 0.4*Math.sin(frame*0.3);
+    const rad = ovl.width * 0.018;
+    octx.globalCompositeOperation = "lighter";
+    const g = octx.createRadialGradient(px,py,0, px,py,rad*2.6);
+    g.addColorStop(0,   `rgba(255,80,60,${0.5*pulse})`);
+    g.addColorStop(0.5, "rgba(200,40,40,0.14)");
+    g.addColorStop(1,   "rgba(200,40,40,0)");
+    octx.fillStyle = g;
+    octx.beginPath(); octx.arc(px,py,rad*2.6,0,6.2832); octx.fill();
+    octx.globalCompositeOperation = "source-over";
+    octx.strokeStyle = `rgba(255,110,90,${0.75+0.25*pulse})`; octx.lineWidth = 2;
+    octx.beginPath(); octx.arc(px,py,rad,0,6.2832); octx.stroke();
+    const k = rad*0.5;
+    octx.beginPath();
+    octx.moveTo(px-k,py-k); octx.lineTo(px+k,py+k);
+    octx.moveTo(px+k,py-k); octx.lineTo(px-k,py+k);
+    octx.stroke();
+  }
   for(let i=0;i<MAXSPORES;i++){
     const s = spores[i]; if(!s || !s.armed) continue;
     const [px, py] = toPx(s.ux*W, s.uy*H);
