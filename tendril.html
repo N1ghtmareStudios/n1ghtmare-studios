@@ -506,6 +506,7 @@ uniform vec2 u_bloom;            // styrka, mip-nivå
 uniform vec2 u_asp;              // x = fältets W/H, y = skärmens w/h
 uniform float u_kal;             // kalejdoskop: 0 = av, annars antal speglingar
 uniform vec4 u_burst[4];         // chockvågor: uv.xy, ålder 0..1, aktiv
+uniform vec3 u_burstCol[4];      // vågens färg; (0,0,0) = neutral palettskiftning
 uniform float u_warOn;           // 1 i krigsläget: blanda in B-palettens botten
 in vec2 v_uv;
 out vec4 o;
@@ -549,7 +550,10 @@ void main(){
     float r = bu.z * 0.42 + 0.012;
     float band = exp(-pow((d - r) * 24.0, 2.0)) * (1.0 - bu.z);
     float mm = clamp(m + band * 0.55, 0.0, 1.0);
-    col = mix(col, texture(u_lut, vec2(mm, 0.5)).rgb, min(band, 1.0)) + band * 0.16;
+    vec3 bc = u_burstCol[i];
+    float hasC = step(0.001, dot(bc, bc));
+    vec3 waveCol = mix(texture(u_lut, vec2(mm, 0.5)).rgb, bc * (0.35 + m * 1.1), hasC);
+    col = mix(col, waveCol, min(band, 1.0)) + band * 0.25 * mix(vec3(0.65), bc, hasC);
   }
   o = vec4(col, 1.0);
 }`;
@@ -890,6 +894,7 @@ const glowTrail = [];     // kort historik av fingerpunkter → kometsvans
 // ── chockvågor och kalejdoskop ──────────────────────────────────────
 const bursts = [];                       // {ux, uy, t} — max 4 samtidiga
 const burstArr = new Float32Array(16);   // packas om till u_burst varje bild
+const burstColArr = new Float32Array(12); // vågfärger → u_burstCol
 const BURST_MS = 1100;
 let kal = 0;                             // 0 = av, annars antal speglingar
 
@@ -1027,8 +1032,8 @@ function stampRing(x, y){
   gl.bindVertexArray(null);
   gl.disable(gl.BLEND);
 }
-function pushWave(gx, gy){
-  bursts.push({ ux: gx/W, uy: gy/H, t: performance.now() });
+function pushWave(gx, gy, col){
+  bursts.push({ ux: gx/W, uy: gy/H, t: performance.now(), col: col || null });
   if(bursts.length > 4) bursts.shift();
 }
 function spawnBurst(e){
@@ -1038,9 +1043,18 @@ function spawnBurst(e){
 }
 // Bomb: kasta agenterna utåt i en kort, hård stöt + våg + matring att
 // växa tillbaka i. Kollapsens final återanvänder samma detonation.
+const BOMB_COLS = [
+  [1.0, 0.75, 0.25],   // guld
+  [0.30, 0.90, 1.0],   // cyan
+  [1.0, 0.35, 0.90],   // magenta
+  [0.50, 1.0, 0.45],   // grön
+  [1.0, 0.50, 0.20],   // orange
+  [0.80, 0.60, 1.0],   // violett
+];
+let bombCol = 0;
 function bombAt(x, y){
   addForce(x, y, 1, 5.0, 550);
-  pushWave(x, y);
+  pushWave(x, y, BOMB_COLS[bombCol++ % BOMB_COLS.length]);
   stampRing(x, y);
 }
 // Krafternas envelope: bomben avtar direkt, virvel/kollaps tonas in
@@ -1329,6 +1343,11 @@ function display(){
     burstArr[i*4+3] = 1;
   }
   gl.uniform4fv(uDisplay["u_burst[0]"], burstArr);
+  burstColArr.fill(0);
+  for(let i = 0; i < Math.min(4, bursts.length); i++)
+    if(bursts[i].col){ burstColArr[i*3] = bursts[i].col[0];
+      burstColArr[i*3+1] = bursts[i].col[1]; burstColArr[i*3+2] = bursts[i].col[2]; }
+  gl.uniform3fv(uDisplay["u_burstCol[0]"], burstColArr);
   gl.bindVertexArray(emptyVAO);
   gl.disable(gl.BLEND);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
