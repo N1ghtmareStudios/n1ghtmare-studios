@@ -96,8 +96,9 @@
   #panel.open{transform:none}
   #replay{
     position:fixed; z-index:5; right:22px; display:none;
-    bottom:calc(env(safe-area-inset-bottom,0px) + 96px);
-    width:48px; height:48px; border-radius:50%;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 110px);
+    width:56px; height:56px; border-radius:50%;
+    box-shadow:0 0 14px color-mix(in srgb, var(--glow) 50%, transparent);
     background:color-mix(in srgb, var(--chrome) 92%, transparent);
     border:2px solid var(--glow); color:var(--glow);
     font-size:20px; cursor:pointer; backdrop-filter:blur(14px)}
@@ -133,7 +134,7 @@
   #seedbox input[type=text]{
     flex:1; min-width:0; background:#171426; border:1px solid var(--edge);
     color:var(--ink); border-radius:9px; padding:11px 13px;
-    font:600 13px/1 inherit; letter-spacing:.05em; outline:none}
+    font:600 16px/1 inherit; letter-spacing:.05em; outline:none}
   #seedbox input[type=text]:focus{border-color:var(--glow)}
   #seedbox button, #seedbox label{
     background:none; border:1px solid var(--edge); color:var(--dim);
@@ -263,7 +264,7 @@
     <button id="mirror">Mirror</button>
     <button id="audio">Audio: Off</button>
     <button id="war">War: Off</button>
-    <button id="seed2">Seed</button>
+    <button id="seed2">Write</button>
     <span id="hud">—</span>
   </div>
 </div>
