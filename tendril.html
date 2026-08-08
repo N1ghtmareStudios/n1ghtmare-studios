@@ -114,6 +114,11 @@
     min-height:46px; min-width:72px;
   }
   .presets button.on{border-color:var(--glow); color:var(--glow); background:#1e1728}
+  /* egna preset-chips: naturlig bredd (raden bryter), annars svämmar
+     långa namn som BLOODSTORM över kanten */
+  #userpresets button{flex:0 1 auto; min-width:0; max-width:100%;
+    padding-left:14px; padding-right:14px; letter-spacing:.06em;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .uphint{font-size:11px; letter-spacing:.08em; text-transform:uppercase;
           color:#5c5470; margin:-6px 0 14px}
 
