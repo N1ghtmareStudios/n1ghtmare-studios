@@ -230,7 +230,7 @@
     <button id="play">Play</button>
     <button id="reset">Reseed</button>
     <button id="palette">Color: Ice</button>
-    <button id="sparks">Sparks</button>
+    <button id="sparks" class="on">Sparks</button>
     <button id="mirror">Mirror</button>
     <button id="audio">Audio: Off</button>
     <span id="hud">—</span>
@@ -1255,7 +1255,7 @@ function display(){
 // ═══════════════════════════════════════════════════════════════════
 //  AGENTLÄGET — gör den enda regeln synlig
 // ═══════════════════════════════════════════════════════════════════
-let showAgents = false, sparks = false;
+let showAgents = false, sparks = true;   // gnistorna är på från start
 const agent0 = new Float32Array(4);
 
 // Glödande agenter som additiva motes. count = hur många, pt = storlek,
@@ -1970,7 +1970,7 @@ addEventListener("resize", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-P.count = Math.max(1, Math.round(P.count * DENS));
+P.count = 3;   // startläget: 3k agenter — glest och elegant, flyter överallt
 allocate();
 seed();
 syncUI();
