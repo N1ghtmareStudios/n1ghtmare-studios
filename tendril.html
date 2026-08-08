@@ -191,7 +191,7 @@
   <div class="sl"><label>Sensors</label><input id="sDist" type="range" min="2" max="30" step="1"><output></output></div>
   <div class="sl"><label>Turn</label><input id="sTurn" type="range" min="5" max="90" step="1"><output></output></div>
   <div class="sl"><label>Decay</label><input id="sDecay" type="range" min="80" max="99" step="1"><output></output></div>
-  <div class="sl"><label>Agents</label><input id="sCount" type="range" min="5" max="300" step="5"><output></output></div>
+  <div class="sl"><label>Agents</label><input id="sCount" type="range" min="1" max="10" step="1"><output></output></div>
   <div class="foot">
     <button id="play">Play</button>
     <button id="reset">Reseed</button>
@@ -246,10 +246,12 @@ const P = {
 // Veins  — tjocka, långsamma, ljusa ådror (mycel).
 // Weave  — långa svepande trådar, fin spets — lång känsel, nästan ingen sväng.
 // Storm  — kokande celler som ständigt omorganiserar sig — kort känsel, tvär sväng, hög fart.
+// Agenttaket är lågt med flit: över ~10k hackar mobiler, och glesare
+// nät är dessutom snyggare — varje tråd hinner synas.
 const PRESETS = [
-  { sensorDist:10, turn:0.38, decay:0.94,  count:30, sensorAngle:0.42, speed:0.9, deposit:0.28 },
-  { sensorDist:30, turn:0.10, decay:0.975, count:34, sensorAngle:0.90, speed:1.5, deposit:0.12 },
-  { sensorDist:3,  turn:1.20, decay:0.85,  count:45, sensorAngle:0.90, speed:2.2, deposit:0.35 }
+  { sensorDist:10, turn:0.38, decay:0.94,  count:8,  sensorAngle:0.42, speed:0.9, deposit:0.28 },
+  { sensorDist:30, turn:0.10, decay:0.975, count:7,  sensorAngle:0.90, speed:1.5, deposit:0.12 },
+  { sensorDist:3,  turn:1.20, decay:0.85,  count:10, sensorAngle:0.90, speed:2.2, deposit:0.35 }
 ];
 Object.assign(P, PRESETS[1]);   // Weave är sajtens startläge
 
@@ -1722,7 +1724,7 @@ sCount.oninput = e => { P.count = +e.target.value; syncUI(); seed(); };
 const DENS = MOBILE ? 0.55 : 1;
 function applyPreset(i){
   Object.assign(P, PRESETS[i]);
-  P.count = Math.max(5, Math.round(P.count * DENS / 5) * 5);
+  P.count = Math.max(1, Math.round(P.count * DENS));
   syncUI(); seed();
 }
 document.querySelectorAll(".presets button[data-p]").forEach(b => {
@@ -1787,6 +1789,8 @@ let userPresets = null, activeUser = -1;
 try { userPresets = JSON.parse(localStorage.getItem(UP_KEY)); } catch(e){}
 if(!Array.isArray(userPresets) || !userPresets.length)
   userPresets = FACTORY.map(f => ({ ...f, p: {...f.p} }));
+// klampa gamla sparade presets till nya agenttaket
+userPresets.forEach(u => { if(u.p) u.p.count = Math.max(1, Math.min(10, u.p.count || 8)); });
 
 function persistUser(){
   try { localStorage.setItem(UP_KEY, JSON.stringify(userPresets)); } catch(e){}
@@ -1886,7 +1890,7 @@ addEventListener("resize", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-P.count = Math.max(5, Math.round(P.count * DENS / 5) * 5);
+P.count = Math.max(1, Math.round(P.count * DENS));
 allocate();
 seed();
 syncUI();
