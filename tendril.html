@@ -177,6 +177,12 @@
     <button data-p="1">Weave</button>
     <button data-p="2">Storm</button>
   </div>
+  <div class="presets" id="tools">
+    <button data-t="0" class="on">Draw</button>
+    <button data-t="1">Bomb</button>
+    <button data-t="2">Vortex</button>
+    <button data-t="3">Collapse</button>
+  </div>
   <div class="sl"><label>Detail</label><input id="sZoom" type="range" min="10" max="50" step="5"><output></output></div>
   <div class="sl"><label>Sensors</label><input id="sDist" type="range" min="2" max="30" step="1"><output></output></div>
   <div class="sl"><label>Turn</label><input id="sTurn" type="range" min="5" max="90" step="1"><output></output></div>
@@ -232,11 +238,14 @@ const P = {
   speed: 1.0, decay: 0.94, deposit: 0.22, count: 30
 };
 
-// De tre verifierade förinställningarna, oförändrade.
+// Tre lägen med tydligt olika karaktär:
+// Veins  — tjocka, långsamma, ljusa ådror (mycel).
+// Weave  — långa svepande trådar, fin spets — lång känsel, nästan ingen sväng.
+// Storm  — kokande celler som ständigt omorganiserar sig — kort känsel, tvär sväng, hög fart.
 const PRESETS = [
-  { sensorDist:9,  turn:0.38, decay:0.94, count:30, sensorAngle:0.42, speed:1.0,  deposit:0.22 },
-  { sensorDist:22, turn:0.14, decay:0.97, count:38, sensorAngle:0.65, speed:1.25, deposit:0.16 },
-  { sensorDist:4,  turn:0.85, decay:0.88, count:45, sensorAngle:0.30, speed:1.6,  deposit:0.30 }
+  { sensorDist:10, turn:0.38, decay:0.94,  count:30, sensorAngle:0.42, speed:0.9, deposit:0.28 },
+  { sensorDist:30, turn:0.10, decay:0.975, count:34, sensorAngle:0.90, speed:1.5, deposit:0.12 },
+  { sensorDist:3,  turn:1.20, decay:0.85,  count:45, sensorAngle:0.90, speed:2.2, deposit:0.35 }
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -284,6 +293,8 @@ layout(location=0) in vec4 a_data;   // x, y, vinkel, oanvänd
 uniform sampler2D u_trail;
 uniform vec2  u_size;
 uniform float u_sd, u_sa, u_turn, u_speed, u_frame;
+uniform vec4  u_force[2];   // yttre kraft: x, y, läge (1 bomb/2 virvel/3 kollaps), styrka
+uniform float u_forceR;     // kraftens räckvidd i rutor
 out vec4 v_data;
 
 uint hash(uint x){ x^=x>>16; x*=0x7feb352du; x^=x>>15; x*=0x846ca68bu; x^=x>>16; return x; }
@@ -306,6 +317,25 @@ void main(){
   }
   else if(R > L){ na = a + u_turn; }
   else if(L > R){ na = a - u_turn; }
+
+  // Yttre krafter styr om agenterna: bomben kastar dem utåt, virveln får
+  // dem att kretsa (tangent + lite inåtdrag), kollapsen suger in allt.
+  for(int i=0;i<2;i++){
+    if(u_force[i].z < 0.5) continue;
+    vec2 dd = pos - u_force[i].xy;
+    dd -= round(dd / u_size) * u_size;         // kortaste väg på torusen
+    float dist = length(dd);
+    if(dist >= u_forceR) continue;
+    vec2 rdir = dd / max(dist, 1e-3);
+    float fall = 1.0 - dist / u_forceR;
+    vec2 dir;
+    if(u_force[i].z < 1.5)      dir = rdir;                                  // bomb
+    else if(u_force[i].z < 2.5) dir = normalize(vec2(-rdir.y, rdir.x) - rdir*0.55); // virvel
+    else                        dir = -rdir;                                 // kollaps
+    float want = atan(dir.y, dir.x);
+    float da = atan(sin(want - na), cos(want - na));
+    na += da * min(1.0, u_force[i].w * fall);
+  }
 
   float nx = mod(x + cos(na)*u_speed, u_size.x);
   float ny = mod(y + sin(na)*u_speed, u_size.y);
@@ -768,6 +798,17 @@ const burstArr = new Float32Array(16);   // packas om till u_burst varje bild
 const BURST_MS = 1100;
 let kal = 0;                             // 0 = av, annars antal speglingar
 
+// ── tap-verktyg och krafter som styr agenterna ──────────────────────
+// 0 Draw (färgvåg), 1 Bomb (utåt), 2 Vortex (kretsar), 3 Collapse (inåt,
+// exploderar när den släpper). Max två krafter i taget → två uniforms.
+let tool = 0;
+const forces = [];                       // {x, y, type, t0, ttl, k}
+const forceArr = new Float32Array(8);    // packas om till u_force varje steg
+function addForce(x, y, type, k, ttl){
+  forces.push({ x, y, type, t0: performance.now(), ttl, k });
+  if(forces.length > 2) forces.shift();
+}
+
 function feed(){
   if(!food) return;
   // Måla en obruten, lysande tråd längs dragets väg — inte bara en prick.
@@ -871,11 +912,37 @@ function stampRing(x, y){
   gl.bindVertexArray(null);
   gl.disable(gl.BLEND);
 }
+function pushWave(gx, gy){
+  bursts.push({ ux: gx/W, uy: gy/H, t: performance.now() });
+  if(bursts.length > 4) bursts.shift();
+}
 function spawnBurst(e){
   const g = toGrid(e);
-  bursts.push({ ux: g.x/W, uy: g.y/H, t: performance.now() });
-  if(bursts.length > 4) bursts.shift();
+  pushWave(g.x, g.y);
   stampRing(g.x, g.y);
+}
+// Bomb: kasta agenterna utåt i en kort, hård stöt + våg + matring att
+// växa tillbaka i. Kollapsens final återanvänder samma detonation.
+function bombAt(x, y){
+  addForce(x, y, 1, 5.0, 550);
+  pushWave(x, y);
+  stampRing(x, y);
+}
+// Krafternas envelope: bomben avtar direkt, virvel/kollaps tonas in
+// mjukt och dör ut mot slutet. Kollapsen detonerar när den släpper.
+function forceStrength(f, age){
+  if(f.type === 1) return f.k * (1 - age);
+  return f.k * Math.min(1, age * 6) * (1 - age*age);
+}
+function tickForces(){
+  const now = performance.now();
+  for(let i = forces.length - 1; i >= 0; i--){
+    const f = forces[i];
+    if(now - f.t0 >= f.ttl){
+      forces.splice(i, 1);
+      if(f.type === 3) bombAt(f.x, f.y);   // supernova: kollaps → explosion
+    }
+  }
 }
 
 // ── vy: zooma och panorera ──────────────────────────────────────────
@@ -952,8 +1019,12 @@ function liftPointer(e){
   if(!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
   if(pointers.size === 0){
-    if(tapCandidate){                       // tap → färgexplosion; dubbeltryck → återställ vyn
-      spawnBurst(e);
+    if(tapCandidate){                       // tap → aktivt verktyg; dubbeltryck → återställ vyn
+      const g = toGrid(e);
+      if(tool === 0)      spawnBurst(e);
+      else if(tool === 1) bombAt(g.x, g.y);
+      else if(tool === 2) addForce(g.x, g.y, 2, 3.5, 3200);   // virveln snurrar ~3 s
+      else                addForce(g.x, g.y, 3, 3.0, 2600);   // kollaps → supernova
       const now = e.timeStamp || 0;
       if(now - lastTap < 300) resetView();
       lastTap = now;
@@ -1001,6 +1072,18 @@ function step(){
   gl.uniform1f(uUpdate.u_turn, P.turn);
   gl.uniform1f(uUpdate.u_speed, P.speed);
   gl.uniform1f(uUpdate.u_frame, frame % 65536);
+  // aktiva krafter → u_force[2]; styrkan följer sin envelope
+  forceArr.fill(0);
+  const fnow = performance.now();
+  for(let i = 0; i < Math.min(2, forces.length); i++){
+    const f = forces[i], age = (fnow - f.t0) / f.ttl;
+    forceArr[i*4+0] = f.x;
+    forceArr[i*4+1] = f.y;
+    forceArr[i*4+2] = f.type;
+    forceArr[i*4+3] = Math.max(0, forceStrength(f, Math.min(1, age)));
+  }
+  gl.uniform4fv(uUpdate["u_force[0]"], forceArr);
+  gl.uniform1f(uUpdate.u_forceR, Math.min(W, H) * 0.30);
   gl.bindVertexArray(agentVAO[src]);
   gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
   gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, agentBuf[dst]);
@@ -1508,7 +1591,7 @@ function loop(now){
   // I agentläget kör simuleringen var tredje bild, så ögat hinner följa
   // en enskild agent istället för bara se resultatet.
   if(!showAgents || (tick++ % 3) === 0){
-    feed(); emit(); step(); diffuse(); frame++;
+    tickForces(); feed(); emit(); step(); diffuse(); frame++;
   }
   if(showAgents || follow) readHero();
   if(follow) followCamera();               // kameran centrerar hjälte-agenten
@@ -1563,11 +1646,19 @@ function applyPreset(i){
   P.count = Math.max(5, Math.round(P.count * DENS / 5) * 5);
   syncUI(); seed();
 }
-document.querySelectorAll(".presets button").forEach(b => {
+document.querySelectorAll(".presets button[data-p]").forEach(b => {
   b.onclick = () => {
-    document.querySelectorAll(".presets button").forEach(x => x.classList.remove("on"));
+    document.querySelectorAll(".presets button[data-p]").forEach(x => x.classList.remove("on"));
     b.classList.add("on");
     applyPreset(+b.dataset.p);
+  };
+});
+
+document.querySelectorAll("#tools button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("#tools button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tool = +b.dataset.t;
   };
 });
 
