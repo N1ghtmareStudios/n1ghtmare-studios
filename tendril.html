@@ -1,4 +1,4 @@
-<title>Tendril</title>
+<title>Tendril — N1ghtmare Studios Lab</title>
 <style>
   :root{
     --void:#07060b;
@@ -172,28 +172,28 @@
 
 <div id="panel">
   <div class="presets">
-    <button data-p="0" class="on">Ådror</button>
-    <button data-p="1">Väv</button>
+    <button data-p="0" class="on">Veins</button>
+    <button data-p="1">Weave</button>
     <button data-p="2">Storm</button>
   </div>
-  <div class="sl"><label>Detalj</label><input id="sZoom" type="range" min="10" max="50" step="5"><output></output></div>
-  <div class="sl"><label>Känselspröt</label><input id="sDist" type="range" min="2" max="30" step="1"><output></output></div>
-  <div class="sl"><label>Svängning</label><input id="sTurn" type="range" min="5" max="90" step="1"><output></output></div>
-  <div class="sl"><label>Förfall</label><input id="sDecay" type="range" min="80" max="99" step="1"><output></output></div>
-  <div class="sl"><label>Antal</label><input id="sCount" type="range" min="5" max="500" step="5"><output></output></div>
+  <div class="sl"><label>Detail</label><input id="sZoom" type="range" min="10" max="50" step="5"><output></output></div>
+  <div class="sl"><label>Sensors</label><input id="sDist" type="range" min="2" max="30" step="1"><output></output></div>
+  <div class="sl"><label>Turn</label><input id="sTurn" type="range" min="5" max="90" step="1"><output></output></div>
+  <div class="sl"><label>Decay</label><input id="sDecay" type="range" min="80" max="99" step="1"><output></output></div>
+  <div class="sl"><label>Agents</label><input id="sCount" type="range" min="5" max="300" step="5"><output></output></div>
   <div class="foot">
-    <button id="play">Spela</button>
-    <button id="reset">Så om</button>
-    <button id="palette">Färg: Glöd</button>
-    <button id="sparks">Gnistor</button>
-    <button id="ride">Åk med</button>
-    <button id="agents">Visa agenter</button>
+    <button id="play" style="display:none">Play</button>
+    <button id="reset">Reseed</button>
+    <button id="palette">Color: Ember</button>
+    <button id="sparks">Sparks</button>
+    <button id="ride">Ride along</button>
+    <button id="agents">Show agents</button>
     <span id="hud">—</span>
   </div>
 </div>
-<button id="toggle" aria-label="Reglage">✳</button>
+<button id="toggle" aria-label="Controls">✳</button>
 
-<div id="nogl">Den här enheten saknar WebGL2 — GPU-versionen kan inte köras här.</div>
+<div id="nogl">This device lacks WebGL2 — the GPU version cannot run here.</div>
 
 <script>
 (() => {
@@ -489,9 +489,9 @@ gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 // Flera paletter att byta mellan; den första är prototypens verifierade.
 const lutTex = gl.createTexture();
 const PALETTES = [
-  { name:"Glöd", stops:[[0,4,3,9],[.22,32,16,68],[.45,118,28,110],[.70,224,108,58],[.88,250,198,120],[1,255,250,238]] },
-  { name:"Is",   stops:[[0,3,5,14],[.30,12,34,78],[.58,28,120,180],[.82,120,214,236],[1,236,252,255]] },
-  { name:"Spor", stops:[[0,4,8,6],[.30,18,54,28],[.56,54,130,44],[.80,168,214,86],[1,240,255,206]] },
+  { name:"Ember", stops:[[0,4,3,9],[.22,32,16,68],[.45,118,28,110],[.70,224,108,58],[.88,250,198,120],[1,255,250,238]] },
+  { name:"Ice",  stops:[[0,3,5,14],[.30,12,34,78],[.58,28,120,180],[.82,120,214,236],[1,236,252,255]] },
+  { name:"Spore", stops:[[0,4,8,6],[.30,18,54,28],[.56,54,130,44],[.80,168,214,86],[1,240,255,206]] },
   { name:"Neon", stops:[[0,6,3,12],[.26,70,10,86],[.50,190,20,120],[.74,244,66,150],[.90,255,150,110],[1,255,240,220]] },
 ];
 let palIdx = 0;
@@ -575,7 +575,7 @@ function makeAgentBuf(){
 }
 
 function allocate(){
-  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const dpr = Math.min(devicePixelRatio || 1, 1, 1920 / Math.max(1, innerWidth));
   cvs.width  = Math.round(innerWidth  * dpr);
   cvs.height = Math.round(innerHeight * dpr);
   cvs.style.width  = innerWidth + "px";
@@ -649,7 +649,7 @@ function setZoom(next){
   trailTex = [null, null]; trailFBO = [null, null];
 
   SCALE = next;
-  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const dpr = Math.min(devicePixelRatio || 1, 1, 1920 / Math.max(1, innerWidth));
   cvs.width  = Math.round(innerWidth  * dpr);
   cvs.height = Math.round(innerHeight * dpr);
   cvs.style.width  = innerWidth + "px";
@@ -1244,7 +1244,7 @@ function gameHud(){
 }
 function refreshPlay(){
   const b = document.getElementById("play");
-  b.textContent = gstate === 1 ? "Sluta" : "Spela";
+  b.textContent = gstate === 1 ? "Stop" : "Play";
   b.classList.toggle("on", gstate === 1);
 }
 function startGame(){
@@ -1496,7 +1496,7 @@ $("reset").onclick = seed;
 $("palette").onclick = e => {
   palIdx = (palIdx + 1) % PALETTES.length;
   buildLUT(PALETTES[palIdx].stops);
-  e.target.textContent = "Färg: " + PALETTES[palIdx].name;
+  e.target.textContent = "Color: " + PALETTES[palIdx].name;
 };
 
 $("sparks").onclick = e => {
