@@ -141,7 +141,11 @@
     letter-spacing:.1em; text-transform:uppercase; cursor:pointer; white-space:nowrap;
     min-height:46px;
   }
-  .foot button:hover{color:var(--glow); border-color:var(--glow)}
+  /* hover bara där riktig pekare finns — på touch fastnar :hover efter
+     tryck och en avstängd knapp ser halvtänd ut */
+  @media (hover:hover){
+    .foot button:hover{color:var(--glow); border-color:var(--glow)}
+  }
   .foot button.on{color:var(--glow); border-color:var(--glow); background:#1e1728}
   .foot span{margin-left:auto; font:12px/1 ui-monospace,Menlo,monospace;
              color:var(--dim); font-variant-numeric:tabular-nums}
@@ -224,8 +228,6 @@
     <button id="sparks">Sparks</button>
     <button id="mirror">Mirror</button>
     <button id="audio">Audio: Off</button>
-    <button id="ride">Ride along</button>
-    <button id="agents">Show agents</button>
     <span id="hud">—</span>
   </div>
 </div>
@@ -1502,8 +1504,6 @@ function startGame(){
   gstate = 1; score = 0; combo = 0; lives = START_LIVES; level = 1;
   collects = 0; curLife = 10; activeCount = 2; hurt = 0;
   showAgents = false; follow = false;
-  document.getElementById("agents").classList.remove("on");
-  document.getElementById("ride").classList.remove("on");
   document.body.classList.remove("teaching", "gameover");
   document.body.classList.add("gaming");
   resetView();
@@ -1946,28 +1946,8 @@ function renderUserPresets(){
 }
 renderUserPresets();
 
-$("ride").onclick = e => {
-  follow = !follow;
-  e.target.classList.toggle("on", follow);
-  if(follow){
-    showAgents = false;                     // åk med och pedagogik är olika lägen
-    $("agents").classList.remove("on");
-    document.body.classList.remove("teaching");
-    readHero();
-    view.cx = agent0[0]/W; view.cy = agent0[1]/H;   // hoppa fram till agenten
-    view.z = Math.max(view.z, 5);
-    heroTrail.length = 0;
-  } else {
-    clampCenter();                          // tillbaka innanför världen
-  }
-};
-
-$("agents").onclick = e => {
-  showAgents = !showAgents;
-  if(showAgents){ follow = false; $("ride").classList.remove("on"); }
-  e.target.classList.toggle("on", showAgents);
-  document.body.classList.toggle("teaching", showAgents);
-};
+// (Ride along och Show agents utgick — mekaniken ligger kvar vilande
+//  med follow/showAgents alltid false.)
 
 const panel = $("panel"), toggle = $("toggle");
 toggle.onclick = () => {
