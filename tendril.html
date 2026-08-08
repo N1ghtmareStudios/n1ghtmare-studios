@@ -141,6 +141,23 @@
   .foot span{margin-left:auto; font:12px/1 ui-monospace,Menlo,monospace;
              color:var(--dim); font-variant-numeric:tabular-nums}
 
+  /* mobil: ännu större tryckytor — panelen är ändå hopfällbar */
+  @media (max-width:600px){
+    #panel{padding:18px 16px 20px}
+    .presets{gap:9px; margin-bottom:16px}
+    .presets button{min-height:56px; font-size:14.5px; border-radius:12px; min-width:76px}
+    .uphint{font-size:12px; margin:-8px 0 16px}
+    .sl{grid-template-columns:88px 1fr 54px; margin-bottom:12px}
+    .sl label{font-size:14px}
+    .sl output{font-size:14px}
+    input[type=range]{height:44px}
+    input[type=range]::-webkit-slider-thumb{width:30px; height:30px; margin-top:-13.5px}
+    input[type=range]::-moz-range-thumb{width:30px; height:30px}
+    .foot{gap:10px}
+    .foot button{min-height:56px; padding:15px 18px; font-size:14.5px; border-radius:11px}
+    .foot span{font-size:13px; flex-basis:100%; text-align:right; margin-left:0}
+  }
+
   #nogl{
     position:fixed; inset:0; z-index:9; display:none; place-items:center;
     padding:32px; text-align:center; color:var(--dim);
