@@ -119,6 +119,20 @@
   #userpresets button{flex:0 1 auto; min-width:0; max-width:100%;
     padding-left:14px; padding-right:14px; letter-spacing:.06em;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+  #seedbox{display:flex; gap:9px; align-items:stretch; margin:13px 0 0;
+           padding-top:13px; border-top:1px solid var(--edge)}
+  #seedbox input[type=text]{
+    flex:1; min-width:0; background:#171426; border:1px solid var(--edge);
+    color:var(--ink); border-radius:9px; padding:11px 13px;
+    font:600 13px/1 inherit; letter-spacing:.05em; outline:none}
+  #seedbox input[type=text]:focus{border-color:var(--glow)}
+  #seedbox button, #seedbox label{
+    background:none; border:1px solid var(--edge); color:var(--dim);
+    border-radius:9px; padding:11px 15px; font:600 12.5px/1 inherit;
+    letter-spacing:.1em; text-transform:uppercase; cursor:pointer;
+    display:flex; align-items:center}
+  #seedbox button:active, #seedbox label:active{color:var(--glow); border-color:var(--glow)}
   .uphint{font-size:11px; letter-spacing:.08em; text-transform:uppercase;
           color:#5c5470; margin:-6px 0 14px}
 
@@ -218,6 +232,7 @@
     <button data-t="1" class="on">Bomb</button>
     <button data-t="2">Vortex</button>
     <button data-t="3">Collapse</button>
+    <button data-t="4">Magnet</button>
   </div>
   <div class="presets" id="userpresets"></div>
   <div class="uphint">Tap loads &middot; Save stores the current look &middot; hold a chip to delete it</div>
@@ -226,6 +241,12 @@
   <div class="sl"><label>Turn</label><input id="sTurn" type="range" min="5" max="90" step="1"><output></output></div>
   <div class="sl"><label>Decay</label><input id="sDecay" type="range" min="80" max="99" step="1"><output></output></div>
   <div class="sl"><label>Agents</label><input id="sCount" type="range" min="1" max="10" step="1"><output></output></div>
+  <div id="seedbox" style="display:none">
+    <input id="seedtext" type="text" maxlength="24" placeholder="Type something…" autocomplete="off">
+    <button id="seedgo">Grow</button>
+    <label id="seedimglbl" for="seedimg">Image</label>
+    <input id="seedimg" type="file" accept="image/*" style="display:none">
+  </div>
   <div class="foot">
     <button id="play">Play</button>
     <button id="reset">Reseed</button>
@@ -233,6 +254,8 @@
     <button id="sparks" class="on">Sparks</button>
     <button id="mirror">Mirror</button>
     <button id="audio">Audio: Off</button>
+    <button id="war">War: Off</button>
+    <button id="seed2">Seed</button>
     <span id="hud">—</span>
   </div>
 </div>
@@ -333,20 +356,27 @@ layout(location=0) in vec4 a_data;   // x, y, vinkel, oanvänd
 uniform sampler2D u_trail;
 uniform vec2  u_size;
 uniform float u_sd, u_sa, u_turn, u_speed, u_frame;
-uniform vec4  u_force[2];   // yttre kraft: x, y, läge (1 bomb/2 virvel/3 kollaps), styrka
+uniform vec4  u_force[6];   // yttre kraft: x, y, läge (1 bomb/2 virvel/3 kollaps), styrka
 uniform float u_forceR;     // kraftens räckvidd i rutor
+uniform float u_half;       // lagsgräns: index < u_half = lag A (utan krig: u_half = N)
 out vec4 v_data;
 
 uint hash(uint x){ x^=x>>16; x*=0x7feb352du; x^=x>>15; x*=0x846ca68bu; x^=x>>16; return x; }
-float sense(vec2 p){ return texture(u_trail, p/u_size).r; }
+// eget spår lockar, fiendens stöter bort — det är hela kriget
+float sense(vec2 p, float team){
+  vec2 t = texture(u_trail, p/u_size).rg;
+  float own = mix(t.r, t.g, team), foe = mix(t.g, t.r, team);
+  return own - foe*1.3;
+}
 
 void main(){
   float x=a_data.x, y=a_data.y, a=a_data.z;
+  float team = float(gl_VertexID) < u_half ? 0.0 : 1.0;
   vec2 pos = vec2(x,y);
   float aL = a - u_sa, aR = a + u_sa;
-  float F = sense(pos + vec2(cos(a),  sin(a))  * u_sd);
-  float L = sense(pos + vec2(cos(aL), sin(aL)) * u_sd);
-  float R = sense(pos + vec2(cos(aR), sin(aR)) * u_sd);
+  float F = sense(pos + vec2(cos(a),  sin(a))  * u_sd, team);
+  float L = sense(pos + vec2(cos(aL), sin(aL)) * u_sd, team);
+  float R = sense(pos + vec2(cos(aR), sin(aR)) * u_sd, team);
 
   float na = a;
   if(F > L && F > R){ }
@@ -360,7 +390,7 @@ void main(){
 
   // Yttre krafter styr om agenterna: bomben kastar dem utåt, virveln får
   // dem att kretsa (tangent + lite inåtdrag), kollapsen suger in allt.
-  for(int i=0;i<2;i++){
+  for(int i=0;i<6;i++){
     if(u_force[i].z < 0.5) continue;
     vec2 dd = pos - u_force[i].xy;
     dd -= round(dd / u_size) * u_size;         // kortaste väg på torusen
@@ -387,19 +417,28 @@ const DISCARD_FS = `#version 300 es
 precision highp float; out vec4 o; void main(){ o = vec4(0.0); }`;
 
 // ── AVSÄTTNING: agenten ritas som en punkt, additiv blandning ───────
+// I krigsläget avsätter varje lag i sin kanal och fräter samtidigt på
+// fiendens (negativt bidrag) — fronterna äter sig genom varandra.
 const DEPOSIT_VS = `#version 300 es
 precision highp float;
 layout(location=0) in vec4 a_data;
 uniform vec2 u_size;
+uniform float u_half;
+out float v_team;
 void main(){
+  v_team = float(gl_VertexID) < u_half ? 0.0 : 1.0;
   gl_Position = vec4(a_data.xy / u_size * 2.0 - 1.0, 0.0, 1.0);
   gl_PointSize = 1.0;
 }`;
 const DEPOSIT_FS = `#version 300 es
 precision highp float;
-uniform float u_deposit;
+uniform float u_deposit, u_eat;
+in float v_team;
 out vec4 o;
-void main(){ o = vec4(u_deposit, 0.0, 0.0, 0.0); }`;
+void main(){
+  o = vec4(u_deposit*(1.0-v_team) - u_eat*v_team,
+           u_deposit*v_team       - u_eat*(1.0-v_team), 0.0, 0.0);
+}`;
 
 // ── MAT: mjuk skiva som läggs till doftfältet ───────────────────────
 const FEED_VS = `#version 300 es
@@ -412,12 +451,13 @@ void main(){
 }`;
 const FEED_FS = `#version 300 es
 precision highp float;
-uniform float u_amp;
+uniform float u_amp, u_g;   // u_g: mata G-kanalen bara i krigsläget
 out vec4 o;
 void main(){
   float d = length(gl_PointCoord - 0.5) * 2.0;
   float f = max(0.0, 1.0 - d);
-  o = vec4(f * f * u_amp, 0.0, 0.0, 0.0);   // mjuk klocka, stark mitt
+  float v = f * f * u_amp;
+  o = vec4(v, v * u_g, 0.0, 0.0);   // mjuk klocka; neutral mat i krig
 }`;
 
 // ── DIFFUSION: 3×3-lådsuddning × förfall, toroidalt via REPEAT ──────
@@ -431,11 +471,11 @@ uniform float u_decay;
 in vec2 v_uv;
 out vec4 o;
 void main(){
-  float s = 0.0;
+  vec2 s = vec2(0.0);
   for(int j=-1;j<=1;j++)
     for(int i=-1;i<=1;i++)
-      s += texture(u_trail, v_uv + vec2(float(i),float(j))*u_texel).r;
-  o = vec4(s / 9.0 * u_decay, 0.0, 0.0, 0.0);
+      s += texture(u_trail, v_uv + vec2(float(i),float(j))*u_texel).rg;
+  o = vec4(max(s / 9.0 * u_decay, 0.0), 0.0, 0.0);   // klampa: ätandet får inte bli negativt
 }`;
 
 // ── EXPONERING: medelvärdet läses ur högsta mipnivån, följs mjukt ───
@@ -447,7 +487,8 @@ uniform sampler2D u_trail;
 uniform sampler2D u_prev;
 out vec4 o;
 void main(){
-  float mean = textureLod(u_trail, vec2(0.5), 20.0).r;
+  vec2 m2 = textureLod(u_trail, vec2(0.5), 20.0).rg;
+  float mean = m2.r + m2.g;
   float prev = texelFetch(u_prev, ivec2(0,0), 0).r;
   float lvl  = prev + (mean - prev) * 0.08;
   o = vec4(max(lvl, 1e-4), 0.0, 0.0, 0.0);
@@ -458,12 +499,14 @@ const DISPLAY_FS = `#version 300 es
 precision highp float;
 uniform sampler2D u_trail;
 uniform sampler2D u_lut;
+uniform sampler2D u_lutB;        // lag B:s palett i krigsläget
 uniform sampler2D u_level;
 uniform vec3 u_view;             // mittpunkt.xy, zoom
 uniform vec2 u_bloom;            // styrka, mip-nivå
 uniform vec2 u_asp;              // x = fältets W/H, y = skärmens w/h
 uniform float u_kal;             // kalejdoskop: 0 = av, annars antal speglingar
 uniform vec4 u_burst[4];         // chockvågor: uv.xy, ålder 0..1, aktiv
+uniform float u_warOn;           // 1 i krigsläget: blanda in B-palettens botten
 in vec2 v_uv;
 out vec4 o;
 void main(){
@@ -480,14 +523,21 @@ void main(){
     s = c + 0.5;
   }
   vec2 uv = (s - 0.5) / u_view.z + u_view.xy;
-  float t = textureLod(u_trail, uv, 0.0).r;
-  float b = textureLod(u_trail, uv, u_bloom.y).r;   // suddig kopia = glöd
+  vec2 t2 = max(textureLod(u_trail, uv, 0.0).rg, 0.0);
+  vec2 b2 = max(textureLod(u_trail, uv, u_bloom.y).rg, 0.0);  // suddig kopia = glöd
   float level = texelFetch(u_level, ivec2(0,0), 0).r;
   float k = level * 5.67;
-  float tone = t / (t + k);           // Reinhard, ingen exp()
-  float glow = b / (b + k);
-  float m = clamp(tone + glow * u_bloom.x, 0.0, 1.0);
-  vec3 col = texture(u_lut, vec2(m, 0.5)).rgb;
+  vec2 tone2 = t2 / (t2 + k);         // Reinhard, ingen exp()
+  vec2 glow2 = b2 / (b2 + k);
+  vec2 m2 = clamp(tone2 + glow2 * u_bloom.x, 0.0, 1.0);
+  float m = m2.x;
+  // två paletter adderas ovanpå en gemensam botten — utan krig är
+  // kanal B tom och bilden identisk med enkanalsversionen
+  vec3 baseA = texture(u_lut,  vec2(0.0, 0.5)).rgb;
+  vec3 baseB = texture(u_lutB, vec2(0.0, 0.5)).rgb;
+  vec3 col = mix(baseA, mix(baseA, baseB, 0.5), u_warOn)
+           + (texture(u_lut,  vec2(m2.x, 0.5)).rgb - baseA)
+           + (texture(u_lutB, vec2(m2.y, 0.5)).rgb - baseB);
   // kromatiska chockvågor: ett expanderande band där paletten trycks
   // uppåt och ljusnar — färgen "exploderar" utåt från nedslaget
   for(int i=0;i<4;i++){
@@ -549,7 +599,7 @@ out vec4 o;
 void main(){
   // ljusstyrka relativt fältets medel → oberoende av exponering.
   // en matad tråd ligger många gånger över medel, en vanlig åder några.
-  float t  = texture(u_trail, v_uv).r;
+  float t  = dot(max(texture(u_trail, v_uv).rg, 0.0), vec2(1.0));
   float lv = max(texelFetch(u_level, ivec2(0,0), 0).r, 1e-3);
   o = vec4(clamp(t / (lv * 12.0), 0.0, 1.0), 0.0, 0.0, 1.0);
 }`;
@@ -597,7 +647,8 @@ const PALETTES = [
   { name:"Blood", stops:[[0,10,2,4],[.30,58,8,16],[.55,138,18,30],[.78,228,70,50],[.92,255,160,90],[1,255,236,210]] },
 ];
 let palIdx = 1;   // Ice är sajtens standard
-function buildLUT(stops){
+const lutTexB = gl.createTexture();   // lag B:s palett i krigsläget
+function buildLUT(tex, stops){
   const data = new Uint8Array(256*4);
   for(let i=0;i<256;i++){
     const t = i/255;
@@ -610,14 +661,18 @@ function buildLUT(stops){
     data[i*4+2] = (a[3]+(b[3]-a[3])*f)|0;
     data[i*4+3] = 255;
   }
-  gl.bindTexture(gl.TEXTURE_2D, lutTex);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
-buildLUT(PALETTES[palIdx].stops);
+// lag B får alltid en kontrasterande palett — Blood, utom när lag A
+// själv kör rött, då blir motståndaren isblå
+function warPalIdx(){ return (palIdx === 5 || palIdx === 0) ? 1 : 5; }
+buildLUT(lutTex, PALETTES[palIdx].stops);
+buildLUT(lutTexB, PALETTES[warPalIdx()].stops);
 
 // ═══════════════════════════════════════════════════════════════════
 //  BUFFERTAR OCH TEXTURER
@@ -632,7 +687,7 @@ let levelTex = [null, null], levelFBO = [null, null], lcur = 0;
 function makeTrail(w, h){
   const tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, w, h, 0, gl.RED, gl.HALF_FLOAT, null);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, w, h, 0, gl.RG, gl.HALF_FLOAT, null);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
@@ -789,7 +844,7 @@ precision highp float;
 uniform sampler2D u_src;
 in vec2 v_uv;
 out vec4 o;
-void main(){ o = vec4(texture(u_src, v_uv).r, 0.0, 0.0, 0.0); }`;
+void main(){ o = vec4(texture(u_src, v_uv).rg, 0.0, 0.0); }`;
 const progDisplayCopy = program(QUAD_VS, COPY_FS);
 const uCopy = uni(progDisplayCopy);
 
@@ -843,7 +898,9 @@ let kal = 0;                             // 0 = av, annars antal speglingar
 // exploderar när den släpper). Max två krafter i taget → två uniforms.
 let tool = 1;                            // Bomb är standardverktyget
 const forces = [];                       // {x, y, type, t0, ttl, k}
-const forceArr = new Float32Array(8);    // packas om till u_force varje steg
+const magnets = [];                      // permanenta virvel-attraktorer (max 4)
+const forceArr = new Float32Array(24);   // packas om till u_force[6] varje steg
+let war = false;                         // två kolonier som krigar om ytan
 function addForce(x, y, type, k, ttl){
   forces.push({ x, y, type, t0: performance.now(), ttl, k });
   if(forces.length > 2) forces.shift();
@@ -860,6 +917,7 @@ function feed(){
   gl.uniform2f(uFeed.u_size, W, H);
   gl.uniform1f(uFeed.u_r, r);
   gl.uniform1f(uFeed.u_amp, 1.1);
+  gl.uniform1f(uFeed.u_g, war ? 1 : 0);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE);
   gl.bindVertexArray(emptyVAO);
@@ -957,6 +1015,7 @@ function stampRing(x, y){
   gl.uniform2f(uFeed.u_size, W, H);
   gl.uniform1f(uFeed.u_r, r);
   gl.uniform1f(uFeed.u_amp, 1.4);
+  gl.uniform1f(uFeed.u_g, war ? 1 : 0);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE);
   gl.bindVertexArray(emptyVAO);
@@ -1090,7 +1149,17 @@ function liftPointer(e){
         if(tool === 0)      spawnBurst(e);
         else if(tool === 1) bombAt(g.x, g.y);
         else if(tool === 2) addForce(g.x, g.y, 2, 3.5, 3200);   // virveln snurrar ~3 s
-        else                addForce(g.x, g.y, 3, 3.0, 2600);   // kollaps → supernova
+        else if(tool === 3) addForce(g.x, g.y, 3, 3.0, 2600);   // kollaps → supernova
+        else {
+          // magnet: tap på tom yta placerar, tap på befintlig tar bort
+          const hit = magnets.findIndex(m => {
+            let dx = m.x - g.x; dx -= Math.round(dx/W)*W;
+            let dy = m.y - g.y; dy -= Math.round(dy/H)*H;
+            return Math.hypot(dx, dy) < Math.min(W,H)*0.08;
+          });
+          if(hit >= 0) magnets.splice(hit, 1);
+          else { magnets.push({ x:g.x, y:g.y }); if(magnets.length > 4) magnets.shift(); }
+        }
       }
       const now = e.timeStamp || 0;
       if(now - lastTap < 300) resetView();
@@ -1139,18 +1208,26 @@ function step(){
   gl.uniform1f(uUpdate.u_turn, P.turn);
   gl.uniform1f(uUpdate.u_speed, P.speed * audioSpeed);
   gl.uniform1f(uUpdate.u_frame, frame % 65536);
-  // aktiva krafter → u_force[2]; styrkan följer sin envelope
+  // aktiva krafter + magneter → u_force[6]; temporära följer sin envelope
   forceArr.fill(0);
   const fnow = performance.now();
-  for(let i = 0; i < Math.min(2, forces.length); i++){
+  let slot = 0;
+  for(let i = 0; i < Math.min(2, forces.length); i++, slot++){
     const f = forces[i], age = (fnow - f.t0) / f.ttl;
-    forceArr[i*4+0] = f.x;
-    forceArr[i*4+1] = f.y;
-    forceArr[i*4+2] = f.type;
-    forceArr[i*4+3] = Math.max(0, forceStrength(f, Math.min(1, age)));
+    forceArr[slot*4+0] = f.x;
+    forceArr[slot*4+1] = f.y;
+    forceArr[slot*4+2] = f.type;
+    forceArr[slot*4+3] = Math.max(0, forceStrength(f, Math.min(1, age)));
+  }
+  for(let i = 0; i < magnets.length && slot < 6; i++, slot++){
+    forceArr[slot*4+0] = magnets[i].x;
+    forceArr[slot*4+1] = magnets[i].y;
+    forceArr[slot*4+2] = 2;              // magnet = mild, evig virvel
+    forceArr[slot*4+3] = 1.2;
   }
   gl.uniform4fv(uUpdate["u_force[0]"], forceArr);
   gl.uniform1f(uUpdate.u_forceR, Math.min(W, H) * 0.30);
+  gl.uniform1f(uUpdate.u_half, war ? N/2 : N + 1);
   gl.bindVertexArray(agentVAO[src]);
   gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
   gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, agentBuf[dst]);
@@ -1171,6 +1248,8 @@ function step(){
   gl.useProgram(progDeposit);
   gl.uniform2f(uDeposit.u_size, W, H);
   gl.uniform1f(uDeposit.u_deposit, P.deposit * audioDep);
+  gl.uniform1f(uDeposit.u_eat, war ? P.deposit * 0.6 : 0);
+  gl.uniform1f(uDeposit.u_half, war ? N/2 : N + 1);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE);
   gl.bindVertexArray(agentVAO[src]);
@@ -1230,6 +1309,10 @@ function display(){
   gl.activeTexture(gl.TEXTURE2);
   gl.bindTexture(gl.TEXTURE_2D, levelTex[lcur]);
   gl.uniform1i(uDisplay.u_level, 2);
+  gl.activeTexture(gl.TEXTURE3);
+  gl.bindTexture(gl.TEXTURE_2D, lutTexB);
+  gl.uniform1i(uDisplay.u_lutB, 3);
+  gl.uniform1f(uDisplay.u_warOn, war ? 1 : 0);
   gl.uniform3f(uDisplay.u_view, view.cx, view.cy, view.z);
   gl.uniform2f(uDisplay.u_bloom, 0.55 * audioBloom, 3.0);   // neonglöd: styrka, mip-nivå (basen pumpar)
   gl.uniform2f(uDisplay.u_asp, W/H, cvs.width/Math.max(1, cvs.height));
@@ -1260,7 +1343,7 @@ const agent0 = new Float32Array(4);
 
 // Glödande agenter som additiva motes. count = hur många, pt = storlek,
 // tint = färg. Används både i agentläget och som "Gnistor" över nätet.
-function drawAgentPoints(count, pt, tint){
+function drawAgentPoints(first, count, pt, tint){
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0,0,cvs.width,cvs.height);
   gl.useProgram(progDots);
@@ -1271,16 +1354,22 @@ function drawAgentPoints(count, pt, tint){
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE);              // additivt → eldflugor
   gl.bindVertexArray(agentVAO[src]);
-  gl.drawArrays(gl.POINTS, 0, Math.min(N, count));
+  gl.drawArrays(gl.POINTS, first, Math.max(0, Math.min(N - first, count)));
   gl.bindVertexArray(null);
   gl.disable(gl.BLEND);
 }
 function dots(){
-  drawAgentPoints(1600, Math.max(3, cvs.width*0.004), [1.0, 0.93, 0.82]);
+  drawAgentPoints(0, 1600, Math.max(3, cvs.width*0.004), [1.0, 0.93, 0.82]);
 }
 function drawSparks(){
-  // fler, mindre motes som strömmar längs trådarna i vilken palett som helst
-  drawAgentPoints(9000, Math.max(2, cvs.width*0.0028), [0.95, 0.82, 0.6]);
+  const pt = Math.max(2, cvs.width*0.0028);
+  if(war){
+    // varsin färg på gnistorna — kall för lag A, varm för lag B
+    drawAgentPoints(0, 4500, pt, [0.65, 0.85, 1.0]);
+    drawAgentPoints(Math.floor(N/2), 4500, pt, [1.0, 0.55, 0.42]);
+  } else {
+    drawAgentPoints(0, 9000, pt, [0.95, 0.82, 0.6]);
+  }
 }
 
 // hjälte-agenten (index 0) läses tillbaka en gång per bild när den behövs
@@ -1412,6 +1501,15 @@ function renderOverlay(){
   if(!octx) return;
   octx.setTransform(1,0,0,1,0,0);
   octx.clearRect(0,0,ovl.width,ovl.height);
+  // magneterna markeras diskret så de går att hitta och plocka bort
+  for(const m of magnets){
+    const [px, py] = toPx(m.x, m.y);
+    const pu = 0.7 + 0.3*Math.sin(frame*0.15);
+    octx.strokeStyle = `rgba(224,161,84,${0.55*pu})`; octx.lineWidth = 2;
+    octx.beginPath(); octx.arc(px, py, ovl.width*0.013, 0, 6.2832); octx.stroke();
+    octx.fillStyle = `rgba(224,161,84,${0.85*pu})`;
+    octx.beginPath(); octx.arc(px, py, 2.5, 0, 6.2832); octx.fill();
+  }
   if(follow) heroTrailDraw();
   if(gstate) drawSpores();
   if(showAgents) heroOverlay();               // pedagogik: inringad agent
@@ -1509,6 +1607,7 @@ function startGame(){
   gstate = 1; score = 0; combo = 0; lives = START_LIVES; level = 1;
   collects = 0; curLife = 10; activeCount = 2; hurt = 0;
   showAgents = false; follow = false;
+  setWar(false);                          // kriget och sporjakten är olika lägen
   document.body.classList.remove("teaching", "gameover");
   document.body.classList.add("gaming");
   resetView();
@@ -1557,6 +1656,7 @@ function depositBlob(gx, gy, r, amp){
   gl.uniform2f(uFeed.u_size, W, H);
   gl.uniform1f(uFeed.u_r, r);
   gl.uniform1f(uFeed.u_amp, amp);
+  gl.uniform1f(uFeed.u_g, war ? 1 : 0);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
   gl.bindVertexArray(emptyVAO);
   gl.drawArrays(gl.POINTS, 0, 1);
@@ -1794,7 +1894,8 @@ $("reset").onclick = seed;
 
 function setPalette(i){
   palIdx = ((i % PALETTES.length) + PALETTES.length) % PALETTES.length;
-  buildLUT(PALETTES[palIdx].stops);
+  buildLUT(lutTex, PALETTES[palIdx].stops);
+  buildLUT(lutTexB, PALETTES[warPalIdx()].stops);
   $("palette").textContent = "Color: " + PALETTES[palIdx].name;
 }
 function setKal(v){
@@ -1856,6 +1957,109 @@ audioBtn.onclick = async () => {
     setTimeout(() => { audioBtn.textContent = "Audio: Off"; }, 1600);
   }
 };
+// ═══════════════════════════════════════════════════════════════════
+//  KRIG — två kolonier (lag A/B = R/G-kanalen) som undviker och äter
+//  varandras spår. Fältet är alltid tvåkanaligt; utan krig är B tomt.
+// ═══════════════════════════════════════════════════════════════════
+function setWar(v){
+  war = v;
+  $("war").classList.toggle("on", war);
+  $("war").textContent = war ? "War: On" : "War: Off";
+}
+$("war").onclick = () => setWar(!war);
+
+// ═══════════════════════════════════════════════════════════════════
+//  FRÖ — text eller bild stämplas in som mat i fältet, och kolonin
+//  växer fram motivet i glödande trådar innan nätet sakta äter upp det.
+// ═══════════════════════════════════════════════════════════════════
+const STAMP_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_img;
+uniform float u_amp, u_g;
+in vec2 v_uv;
+out vec4 o;
+void main(){
+  float l = texture(u_img, v_uv).r;
+  float v = l * l * u_amp;
+  o = vec4(v, v * u_g, 0.0, 0.0);
+}`;
+const progStamp = program(QUAD_VS, STAMP_FS);
+const uStamp = uni(progStamp);
+const stampTex = gl.createTexture();
+function stampField(canvas){
+  gl.bindTexture(gl.TEXTURE_2D, stampTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[cur]);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(progStamp);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, stampTex);
+  gl.uniform1i(uStamp.u_img, 0);
+  gl.uniform1f(uStamp.u_amp, 1.5);
+  gl.uniform1f(uStamp.u_g, war ? 1 : 0);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+  gl.bindVertexArray(emptyVAO);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+}
+$("seed2").onclick = e => {
+  const box = $("seedbox");
+  const open = box.style.display === "none";
+  box.style.display = open ? "flex" : "none";
+  e.target.classList.toggle("on", open);
+  if(open) $("seedtext").focus();
+};
+$("seedgo").onclick = () => {
+  const txt = $("seedtext").value.trim();
+  if(!txt) return;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const x = c.getContext("2d");
+  x.fillStyle = "#000"; x.fillRect(0,0,W,H);
+  x.fillStyle = "#fff"; x.textAlign = "center"; x.textBaseline = "middle";
+  let fs = Math.min(W / (txt.length * 0.62), H * 0.28);
+  x.font = `700 ${fs}px ui-sans-serif,system-ui,sans-serif`;
+  const tw = x.measureText(txt.toUpperCase()).width;
+  if(tw > W * 0.92){ fs *= (W * 0.92) / tw; x.font = `700 ${fs}px ui-sans-serif,system-ui,sans-serif`; }
+  x.fillText(txt.toUpperCase(), W/2, H/2);
+  stampField(c);
+  pushWave(W/2, H/2);
+};
+$("seedtext").addEventListener("keydown", e => { if(e.key === "Enter") $("seedgo").click(); });
+$("seedimg").onchange = () => {
+  const f = $("seedimg").files[0];
+  if(!f) return;
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(img.src);
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const x = c.getContext("2d");
+    x.fillStyle = "#000"; x.fillRect(0,0,W,H);
+    // contain-passa bilden i fältet
+    const s = Math.min(W / img.width, H / img.height) * 0.9;
+    const dw = img.width * s, dh = img.height * s;
+    x.drawImage(img, (W-dw)/2, (H-dh)/2, dw, dh);
+    // luminans → gråskala så stämpeln blir ljusstyrka, inte färg
+    const d = x.getImageData(0,0,W,H), px = d.data;
+    for(let i=0;i<px.length;i+=4){
+      const l = px[i]*0.299 + px[i+1]*0.587 + px[i+2]*0.114;
+      px[i] = px[i+1] = px[i+2] = l;
+    }
+    x.putImageData(d, 0, 0);
+    stampField(c);
+    pushWave(W/2, H/2);
+  };
+  img.src = URL.createObjectURL(f);
+  $("seedimg").value = "";
+};
+
 function sampleAudio(){
   if(!audioOn || !analyser) return;
   analyser.getByteFrequencyData(freqBuf);
