@@ -2038,7 +2038,16 @@ function stampField(canvas){
   gl.disable(gl.BLEND);
 }
 let replaySeed = null;
-function armReplay(fn){ replaySeed = fn; $("replay").classList.add("show"); }
+function armReplay(fn){
+  replaySeed = fn;
+  const r = $("replay");
+  r.classList.add("show");
+  r.style.cssText = "display:block; position:fixed; z-index:9; right:22px;" +
+    "bottom:calc(env(safe-area-inset-bottom,0px) + 112px); width:56px; height:56px;" +
+    "border-radius:50%; background:rgba(15,13,22,.92); border:2px solid #e0a154;" +
+    "color:#e0a154; font-size:22px; cursor:pointer;" +
+    "box-shadow:0 0 14px rgba(224,161,84,.5)";
+}
 function paintAgents(x2d, w, h){
   const d = x2d.getImageData(0, 0, w, h).data;
   const pts = [];
