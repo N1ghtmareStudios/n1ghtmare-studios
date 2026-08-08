@@ -1169,7 +1169,7 @@ function liftPointer(e){
           const hit = magnets.findIndex(m => {
             let dx = m.x - g.x; dx -= Math.round(dx/W)*W;
             let dy = m.y - g.y; dy -= Math.round(dy/H)*H;
-            return Math.hypot(dx, dy) < Math.min(W,H)*0.08;
+            return Math.hypot(dx, dy) < Math.min(W,H)*0.14;
           });
           if(hit >= 0) magnets.splice(hit, 1);
           else { magnets.push({ x:g.x, y:g.y }); if(magnets.length > 4) magnets.shift(); }
@@ -1909,7 +1909,7 @@ document.querySelectorAll("#tools button").forEach(b => {
 $("play").onclick = () => { if(gstate === 1) stopGame(); else startGame(); };
 $("again").onclick = () => startGame();
 
-$("reset").onclick = seed;
+$("reset").onclick = () => { magnets.length = 0; seed(); };
 
 function setPalette(i){
   palIdx = ((i % PALETTES.length) + PALETTES.length) % PALETTES.length;
@@ -2032,7 +2032,7 @@ $("seed2").onclick = e => {
   const open = box.style.display === "none";
   box.style.display = open ? "flex" : "none";
   e.target.classList.toggle("on", open);
-  if(open) $("seedtext").focus();
+  if(open){ box.scrollIntoView({ block: "nearest" }); $("seedtext").focus(); }
 };
 $("seedgo").onclick = () => {
   const txt = $("seedtext").value.trim();
@@ -2138,7 +2138,11 @@ function saveUser(){
     userPresets[activeUser] = snapshot(userPresets[activeUser].name);
   } else {
     let n = 1; while(userPresets.some(u => u.name === "My " + n)) n++;
-    userPresets.push(snapshot("My " + n));
+    let name = "My " + n;
+    try { const t = window.prompt("Name your preset", name);
+          if(t === null) return;                     // avbrutet
+          if(t.trim()) name = t.trim().slice(0, 16); } catch(e){}
+    userPresets.push(snapshot(name));
     activeUser = userPresets.length - 1;
   }
   persistUser(); renderUserPresets();
