@@ -82,10 +82,11 @@
     position:fixed; z-index:4; left:12px; right:12px;
     bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
     background:color-mix(in srgb, var(--chrome) 92%, transparent);
-    border:1px solid var(--edge); border-radius:14px;
-    backdrop-filter:blur(14px); padding:12px 14px 14px;
+    border:1px solid var(--edge); border-radius:16px;
+    backdrop-filter:blur(14px); padding:16px 16px 18px;
     transform:translateY(calc(100% + 24px)); transition:transform .32s cubic-bezier(.3,.8,.4,1);
-    max-width:520px; margin:0 auto;
+    max-width:560px; margin:0 auto;
+    max-height:calc(100vh - 96px); overflow-y:auto;
   }
   #panel.open{transform:none}
   #toggle{
@@ -100,42 +101,44 @@
   }
   @media (prefers-reduced-motion:reduce){ #panel,#toggle{transition:none} }
 
-  .presets{display:flex; gap:7px; margin-bottom:12px}
+  .presets{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap}
   .presets button{
     flex:1; background:#171426; border:1px solid var(--edge); color:var(--dim);
-    border-radius:8px; padding:9px 4px; font:600 11px/1 inherit;
-    letter-spacing:.11em; text-transform:uppercase; cursor:pointer;
+    border-radius:10px; padding:14px 6px; font:600 13px/1 inherit;
+    letter-spacing:.1em; text-transform:uppercase; cursor:pointer;
+    min-height:46px; min-width:72px;
   }
   .presets button.on{border-color:var(--glow); color:var(--glow); background:#1e1728}
-  .uphint{font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;
-          color:#5c5470; margin:-6px 0 12px}
+  .uphint{font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+          color:#5c5470; margin:-6px 0 14px}
 
-  .sl{display:grid; grid-template-columns:74px 1fr 44px; align-items:center;
-      gap:11px; margin-bottom:8px}
-  .sl label{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--dim)}
-  .sl output{font:11px/1 ui-monospace,Menlo,monospace; color:var(--ink);
+  .sl{display:grid; grid-template-columns:82px 1fr 50px; align-items:center;
+      gap:12px; margin-bottom:10px}
+  .sl label{font-size:12.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--dim)}
+  .sl output{font:12.5px/1 ui-monospace,Menlo,monospace; color:var(--ink);
              text-align:right; font-variant-numeric:tabular-nums}
-  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:22px;
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:36px;
                     background:none; cursor:pointer}
-  input[type=range]::-webkit-slider-runnable-track{height:2px; background:var(--edge)}
-  input[type=range]::-moz-range-track{height:2px; background:var(--edge)}
+  input[type=range]::-webkit-slider-runnable-track{height:3px; background:var(--edge)}
+  input[type=range]::-moz-range-track{height:3px; background:var(--edge)}
   input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
-    background:var(--glow); margin-top:-6.5px}
+    -webkit-appearance:none; width:24px; height:24px; border-radius:50%;
+    background:var(--glow); margin-top:-10.5px}
   input[type=range]::-moz-range-thumb{
-    width:15px; height:15px; border:0; border-radius:50%; background:var(--glow)}
+    width:24px; height:24px; border:0; border-radius:50%; background:var(--glow)}
   input[type=range]:focus-visible{outline:2px solid var(--glow); outline-offset:4px}
 
-  .foot{display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-        margin-top:11px; padding-top:11px; border-top:1px solid var(--edge)}
+  .foot{display:flex; flex-wrap:wrap; gap:9px; align-items:center;
+        margin-top:13px; padding-top:13px; border-top:1px solid var(--edge)}
   .foot button{
     background:none; border:1px solid var(--edge); color:var(--dim);
-    border-radius:7px; padding:8px 13px; font:600 11px/1 inherit;
+    border-radius:9px; padding:13px 16px; font:600 12.5px/1 inherit;
     letter-spacing:.1em; text-transform:uppercase; cursor:pointer; white-space:nowrap;
+    min-height:46px;
   }
   .foot button:hover{color:var(--glow); border-color:var(--glow)}
   .foot button.on{color:var(--glow); border-color:var(--glow); background:#1e1728}
-  .foot span{margin-left:auto; font:11px/1 ui-monospace,Menlo,monospace;
+  .foot span{margin-left:auto; font:12px/1 ui-monospace,Menlo,monospace;
              color:var(--dim); font-variant-numeric:tabular-nums}
 
   #nogl{
@@ -880,14 +883,30 @@ function emit(){
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
   emitCursor = (emitCursor + K) % M;
 }
+// Spegelläget viker skärmen i tårtbitar — fingret måste vikas genom
+// samma matte som shadern, annars landar effekten någon annanstans än
+// under fingret (utom i kanterna där vikningen råkar vara identitet).
+function foldS(sx, sy){
+  if(kal < 0.5) return [sx, sy];
+  const asp = cvs.width / Math.max(1, cvs.height);
+  let cx = (sx - 0.5) * asp, cy = sy - 0.5;
+  const w = Math.PI * 2 / kal;
+  let ang = Math.atan2(cy, cx);
+  const rad = Math.hypot(cx, cy);
+  ang = ((ang % w) + w) % w;
+  ang = Math.abs(ang - w * 0.5);
+  cx = Math.cos(ang) * rad / asp; cy = Math.sin(ang) * rad;
+  return [cx + 0.5, cy + 0.5];
+}
 // skärmpunkt (klient-px) → normaliserad skärm-uv + fält-uv (vy inverterad)
 function screenUV(e){
   const r = cvs.getBoundingClientRect();
   const sx = (e.clientX - r.left) / r.width;
   const sy = (e.clientY - r.top)  / r.height;
+  const f = foldS(sx, sy);
   return { sx, sy,
-           ux: (sx - 0.5)/view.z + view.cx,
-           uy: (sy - 0.5)/view.z + view.cy };
+           ux: (f[0] - 0.5)/view.z + view.cx,
+           uy: (f[1] - 0.5)/view.z + view.cy };
 }
 function toGrid(e){
   const p = screenUV(e);
