@@ -185,8 +185,9 @@
   <div class="foot">
     <button id="play" style="display:none">Play</button>
     <button id="reset">Reseed</button>
-    <button id="palette">Color: Ember</button>
+    <button id="palette">Color: Ice</button>
     <button id="sparks">Sparks</button>
+    <button id="mirror">Mirror</button>
     <button id="ride">Ride along</button>
     <button id="agents">Show agents</button>
     <span id="hud">—</span>
@@ -390,10 +391,24 @@ uniform sampler2D u_lut;
 uniform sampler2D u_level;
 uniform vec3 u_view;             // mittpunkt.xy, zoom
 uniform vec2 u_bloom;            // styrka, mip-nivå
+uniform vec2 u_asp;              // x = fältets W/H, y = skärmens w/h
+uniform float u_kal;             // kalejdoskop: 0 = av, annars antal speglingar
+uniform vec4 u_burst[4];         // chockvågor: uv.xy, ålder 0..1, aktiv
 in vec2 v_uv;
 out vec4 o;
 void main(){
   vec2 s = vec2(v_uv.x, 1.0 - v_uv.y);
+  if(u_kal > 0.5){
+    // vik skärmen i tårtbitar runt mitten → mandala av samma fält
+    vec2 c = s - 0.5;
+    c.x *= u_asp.y;
+    float ang = atan(c.y, c.x), rad = length(c);
+    float w = 6.28318530718 / u_kal;
+    ang = mod(ang, w); ang = abs(ang - w*0.5);
+    c = vec2(cos(ang), sin(ang)) * rad;
+    c.x /= u_asp.y;
+    s = c + 0.5;
+  }
   vec2 uv = (s - 0.5) / u_view.z + u_view.xy;
   float t = textureLod(u_trail, uv, 0.0).r;
   float b = textureLod(u_trail, uv, u_bloom.y).r;   // suddig kopia = glöd
@@ -402,7 +417,21 @@ void main(){
   float tone = t / (t + k);           // Reinhard, ingen exp()
   float glow = b / (b + k);
   float m = clamp(tone + glow * u_bloom.x, 0.0, 1.0);
-  o = texture(u_lut, vec2(m, 0.5));
+  vec3 col = texture(u_lut, vec2(m, 0.5)).rgb;
+  // kromatiska chockvågor: ett expanderande band där paletten trycks
+  // uppåt och ljusnar — färgen "exploderar" utåt från nedslaget
+  for(int i=0;i<4;i++){
+    vec4 bu = u_burst[i];
+    if(bu.w < 0.5) continue;
+    vec2 d2 = uv - bu.xy; d2 -= floor(d2 + 0.5);   // kortaste väg på torusen
+    d2.x *= u_asp.x;
+    float d = length(d2);
+    float r = bu.z * 0.42 + 0.012;
+    float band = exp(-pow((d - r) * 24.0, 2.0)) * (1.0 - bu.z);
+    float mm = clamp(m + band * 0.55, 0.0, 1.0);
+    col = mix(col, texture(u_lut, vec2(mm, 0.5)).rgb, min(band, 1.0)) + band * 0.16;
+  }
+  o = vec4(col, 1.0);
 }`;
 
 // ── AGENTPRICKAR / GNISTOR (ritas till skärmen) ─────────────────────
@@ -494,8 +523,10 @@ const PALETTES = [
   { name:"Ice",  stops:[[0,3,5,14],[.30,12,34,78],[.58,28,120,180],[.82,120,214,236],[1,236,252,255]] },
   { name:"Spore", stops:[[0,4,8,6],[.30,18,54,28],[.56,54,130,44],[.80,168,214,86],[1,240,255,206]] },
   { name:"Neon", stops:[[0,6,3,12],[.26,70,10,86],[.50,190,20,120],[.74,244,66,150],[.90,255,150,110],[1,255,240,220]] },
+  { name:"Aurora", stops:[[0,2,6,16],[.25,10,60,90],[.45,18,150,130],[.64,90,220,150],[.82,150,140,235],[1,240,236,255]] },
+  { name:"Blood", stops:[[0,10,2,4],[.30,58,8,16],[.55,138,18,30],[.78,228,70,50],[.92,255,160,90],[1,255,236,210]] },
 ];
-let palIdx = 0;
+let palIdx = 1;   // Ice är sajtens standard
 function buildLUT(stops){
   const data = new Uint8Array(256*4);
   for(let i=0;i<256;i++){
@@ -516,7 +547,7 @@ function buildLUT(stops){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
-buildLUT(PALETTES[0].stops);
+buildLUT(PALETTES[palIdx].stops);
 
 // ═══════════════════════════════════════════════════════════════════
 //  BUFFERTAR OCH TEXTURER
@@ -731,6 +762,12 @@ let foodPrev = null;      // förra bildens punkt — för att måla ett obrutet
 let feedClient = null;    // samma i skärm-px (för den lysande återkopplingen)
 const glowTrail = [];     // kort historik av fingerpunkter → kometsvans
 
+// ── chockvågor och kalejdoskop ──────────────────────────────────────
+const bursts = [];                       // {ux, uy, t} — max 4 samtidiga
+const burstArr = new Float32Array(16);   // packas om till u_burst varje bild
+const BURST_MS = 1100;
+let kal = 0;                             // 0 = av, annars antal speglingar
+
 function feed(){
   if(!food) return;
   // Måla en obruten, lysande tråd längs dragets väg — inte bara en prick.
@@ -811,6 +848,36 @@ function toGrid(e){
   return { x: ux*W, y: uy*H };
 }
 
+// ── färgexplosion: kromatisk våg i visningen + en ring av mat i fältet
+//    som kolonin genast börjar växa ut i — ett tap känns som ett nedslag
+function stampRing(x, y){
+  const R = Math.max(30, Math.min(W,H) * 0.07);
+  const r = Math.max(10, Math.round(Math.min(W,H) * 0.022));
+  gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[cur]);
+  gl.viewport(0,0,W,H);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.useProgram(progFeed);
+  gl.uniform2f(uFeed.u_size, W, H);
+  gl.uniform1f(uFeed.u_r, r);
+  gl.uniform1f(uFeed.u_amp, 1.4);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+  gl.bindVertexArray(emptyVAO);
+  for(let i=0;i<14;i++){
+    const a = i/14 * Math.PI * 2;
+    gl.uniform2f(uFeed.u_pos, x + Math.cos(a)*R, y + Math.sin(a)*R);
+    gl.drawArrays(gl.POINTS, 0, 1);
+  }
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+}
+function spawnBurst(e){
+  const g = toGrid(e);
+  bursts.push({ ux: g.x/W, uy: g.y/H, t: performance.now() });
+  if(bursts.length > 4) bursts.shift();
+  stampRing(g.x, g.y);
+}
+
 // ── vy: zooma och panorera ──────────────────────────────────────────
 // Zoom bottnar vid 1 (hela världen syns) — aldrig utzoomat till plattor.
 function clampZoom(){ view.z = Math.min(8, Math.max(1, view.z)); }
@@ -885,7 +952,8 @@ function liftPointer(e){
   if(!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
   if(pointers.size === 0){
-    if(tapCandidate){                       // dubbeltryck → återställ vyn
+    if(tapCandidate){                       // tap → färgexplosion; dubbeltryck → återställ vyn
+      spawnBurst(e);
       const now = e.timeStamp || 0;
       if(now - lastTap < 300) resetView();
       lastTap = now;
@@ -1014,6 +1082,20 @@ function display(){
   gl.uniform1i(uDisplay.u_level, 2);
   gl.uniform3f(uDisplay.u_view, view.cx, view.cy, view.z);
   gl.uniform2f(uDisplay.u_bloom, 0.55, 3.0);   // neonglöd: styrka, mip-nivå
+  gl.uniform2f(uDisplay.u_asp, W/H, cvs.width/Math.max(1, cvs.height));
+  gl.uniform1f(uDisplay.u_kal, kal);
+  // packa aktiva chockvågor; utgångna faller ur listan här
+  const bnow = performance.now();
+  burstArr.fill(0);
+  for(let i = bursts.length - 1; i >= 0; i--)
+    if(bnow - bursts[i].t >= BURST_MS) bursts.splice(i, 1);
+  for(let i = 0; i < Math.min(4, bursts.length); i++){
+    burstArr[i*4+0] = bursts[i].ux;
+    burstArr[i*4+1] = bursts[i].uy;
+    burstArr[i*4+2] = (bnow - bursts[i].t) / BURST_MS;
+    burstArr[i*4+3] = 1;
+  }
+  gl.uniform4fv(uDisplay["u_burst[0]"], burstArr);
   gl.bindVertexArray(emptyVAO);
   gl.disable(gl.BLEND);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -1503,6 +1585,13 @@ $("palette").onclick = e => {
 $("sparks").onclick = e => {
   sparks = !sparks;
   e.target.classList.toggle("on", sparks);
+};
+
+$("mirror").onclick = e => {
+  const steps = [0, 6, 8, 12];
+  kal = steps[(steps.indexOf(kal) + 1) % steps.length];
+  e.target.classList.toggle("on", kal > 0);
+  e.target.textContent = kal ? "Mirror: " + kal : "Mirror";
 };
 
 $("ride").onclick = e => {
