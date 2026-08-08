@@ -1,3 +1,8 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07060b">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>Tendril — N1ghtmare Studios Lab</title>
 <style>
   :root{
@@ -218,6 +223,8 @@
     <button id="palette">Color: Ice</button>
     <button id="sparks">Sparks</button>
     <button id="mirror">Mirror</button>
+    <button id="rec">Record</button>
+    <button id="audio">Audio</button>
     <button id="ride">Ride along</button>
     <button id="agents">Show agents</button>
     <span id="hud">—</span>
@@ -1124,7 +1131,7 @@ function step(){
   gl.uniform1f(uUpdate.u_sd, P.sensorDist);
   gl.uniform1f(uUpdate.u_sa, P.sensorAngle);
   gl.uniform1f(uUpdate.u_turn, P.turn);
-  gl.uniform1f(uUpdate.u_speed, P.speed);
+  gl.uniform1f(uUpdate.u_speed, P.speed * audioSpeed);
   gl.uniform1f(uUpdate.u_frame, frame % 65536);
   // aktiva krafter → u_force[2]; styrkan följer sin envelope
   forceArr.fill(0);
@@ -1157,7 +1164,7 @@ function step(){
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null); // lossa målet från samplern
   gl.useProgram(progDeposit);
   gl.uniform2f(uDeposit.u_size, W, H);
-  gl.uniform1f(uDeposit.u_deposit, P.deposit);
+  gl.uniform1f(uDeposit.u_deposit, P.deposit * audioDep);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE);
   gl.bindVertexArray(agentVAO[src]);
@@ -1218,7 +1225,7 @@ function display(){
   gl.bindTexture(gl.TEXTURE_2D, levelTex[lcur]);
   gl.uniform1i(uDisplay.u_level, 2);
   gl.uniform3f(uDisplay.u_view, view.cx, view.cy, view.z);
-  gl.uniform2f(uDisplay.u_bloom, 0.55, 3.0);   // neonglöd: styrka, mip-nivå
+  gl.uniform2f(uDisplay.u_bloom, 0.55 * audioBloom, 3.0);   // neonglöd: styrka, mip-nivå (basen pumpar)
   gl.uniform2f(uDisplay.u_asp, W/H, cvs.width/Math.max(1, cvs.height));
   gl.uniform1f(uDisplay.u_kal, kal);
   // packa aktiva chockvågor; utgångna faller ur listan här
@@ -1708,7 +1715,7 @@ function loop(now){
   // I agentläget kör simuleringen var tredje bild, så ögat hinner följa
   // en enskild agent istället för bara se resultatet.
   if(!showAgents || (tick++ % 3) === 0){
-    tickForces(); feed(); emit(); step(); diffuse(); frame++;
+    sampleAudio(); tickForces(); feed(); emit(); step(); diffuse(); frame++;
   }
   if(showAgents || follow) readHero();
   if(follow) followCamera();               // kameran centrerar hjälte-agenten
@@ -1808,6 +1815,101 @@ $("mirror").onclick = () => {
   setKal(steps[(steps.indexOf(kal) + 1) % steps.length]);
   markDirty();
 };
+
+// ═══════════════════════════════════════════════════════════════════
+//  INSPELNING — fånga canvasen som videoklipp, ladda ner direkt.
+//  Safari ger mp4, Chrome webm. Auto-stopp vid 60 s.
+// ═══════════════════════════════════════════════════════════════════
+const recBtn = $("rec");
+let recorder = null, recChunks = [], recT0 = 0, recTimer = null;
+if(!cvs.captureStream || !window.MediaRecorder) recBtn.style.display = "none";
+function pickMime(){
+  for(const m of ["video/mp4", "video/webm;codecs=vp9", "video/webm"])
+    if(MediaRecorder.isTypeSupported(m)) return m;
+  return "";
+}
+function startRec(){
+  const mime = pickMime();
+  recorder = new MediaRecorder(cvs.captureStream(60),
+    mime ? { mimeType: mime, videoBitsPerSecond: 12e6 } : undefined);
+  recChunks = [];
+  recorder.ondataavailable = e => { if(e.data.size) recChunks.push(e.data); };
+  recorder.onstop = () => {
+    const blob = new Blob(recChunks, { type: recorder.mimeType || "video/webm" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "tendril-" + Date.now() + (blob.type.includes("mp4") ? ".mp4" : ".webm");
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    clearInterval(recTimer);
+    recBtn.classList.remove("on"); recBtn.textContent = "Record";
+  };
+  recorder.start();
+  recT0 = performance.now();
+  recBtn.classList.add("on");
+  recTimer = setInterval(() => {
+    const s = ((performance.now() - recT0) / 1000) | 0;
+    recBtn.textContent = "Stop " + s + "s";
+    if(s >= 60) stopRec();
+  }, 500);
+}
+function stopRec(){ if(recorder && recorder.state !== "inactive") recorder.stop(); }
+recBtn.onclick = () => {
+  recorder && recorder.state === "recording" ? stopRec() : startRec();
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  AUDIO-REAKTIVT — mikrofonen driver simuleringen. Basen pumpar
+//  avsättning och glöd, diskanten ger fart, och beats avfyrar vågor
+//  (hårda beats: bomber) på slumpade platser.
+// ═══════════════════════════════════════════════════════════════════
+let audioOn = false, audioCtx = null, analyser = null, freqBuf = null, micStream = null;
+let aBassAvg = 0.02, lastBeat = 0;
+let audioDep = 1, audioSpeed = 1, audioBloom = 1;
+const audioBtn = $("audio");
+if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) audioBtn.style.display = "none";
+audioBtn.onclick = async () => {
+  if(audioOn){
+    audioOn = false;
+    audioDep = audioSpeed = audioBloom = 1;
+    if(micStream) micStream.getTracks().forEach(t => t.stop());
+    if(audioCtx){ audioCtx.close(); audioCtx = null; }
+    audioBtn.classList.remove("on"); audioBtn.textContent = "Audio";
+    return;
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.5;
+    src.connect(analyser);
+    freqBuf = new Uint8Array(analyser.frequencyBinCount);
+    audioOn = true;
+    audioBtn.classList.add("on"); audioBtn.textContent = "Audio ●";
+  } catch(err){
+    audioBtn.textContent = "Mic blocked";
+    setTimeout(() => { audioBtn.textContent = "Audio"; }, 1600);
+  }
+};
+function sampleAudio(){
+  if(!audioOn || !analyser) return;
+  analyser.getByteFrequencyData(freqBuf);
+  let b = 0; for(let i=0;i<4;i++) b += freqBuf[i]; b /= 4*255;          // ~0–750 Hz
+  let t = 0; for(let i=60;i<110;i++) t += freqBuf[i]; t /= 50*255;      // diskant
+  aBassAvg = aBassAvg*0.96 + b*0.04;
+  const now = performance.now();
+  if(b > aBassAvg*1.5 + 0.05 && now - lastBeat > 320){
+    lastBeat = now;
+    const rx = Math.random()*W, ry = Math.random()*H;
+    if(b > aBassAvg*2.2 + 0.12) bombAt(rx, ry);   // riktigt hårt beat → bomb
+    else pushWave(rx, ry);
+  }
+  audioDep   = 1 + b*1.4;
+  audioSpeed = 1 + t*0.7;
+  audioBloom = 1 + b*0.9;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 //  EGNA FÖRINSTÄLLNINGAR — hela läget (simparametrar, verktyg, palett,
