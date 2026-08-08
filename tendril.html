@@ -270,6 +270,7 @@
 </div>
 <button id="toggle" aria-label="Controls">✳</button>
 <button id="replay" aria-label="Replay seed">↻</button>
+<button id="fs" aria-label="Fullscreen">⛶</button>
 
 <div id="nogl">This device lacks WebGL2 — the GPU version cannot run here.</div>
 
@@ -2227,6 +2228,21 @@ renderUserPresets();
 //  med follow/showAgents alltid false.)
 
 $("replay").onclick = () => { if(replaySeed) replaySeed(); };
+// Fullskärm — visas bara där API:t finns (iPhone saknar det; iPad/desktop har)
+(function(){
+  const el = document.documentElement, btn = $("fs");
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if(!req){ btn.style.display = "none"; return; }
+  btn.style.cssText = "display:block; position:fixed; z-index:9; right:22px;" +
+    "bottom:calc(env(safe-area-inset-bottom,0px) + 178px); width:56px; height:56px;" +
+    "border-radius:50%; background:rgba(15,13,22,.92); border:2px solid #7b7391;" +
+    "color:#d9d3e6; font-size:20px; cursor:pointer";
+  btn.onclick = () => {
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if(fsEl) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else req.call(el);
+  };
+})();
 const panel = $("panel"), toggle = $("toggle");
 toggle.onclick = () => {
   const open = panel.classList.toggle("open");
