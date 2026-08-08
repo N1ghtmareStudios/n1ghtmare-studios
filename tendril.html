@@ -120,8 +120,8 @@
     padding-left:14px; padding-right:14px; letter-spacing:.06em;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
-  #seedbox{display:flex; gap:9px; align-items:stretch; margin:13px 0 0;
-           padding-top:13px; border-top:1px solid var(--edge)}
+  #seedbox{display:flex; gap:9px; align-items:stretch; margin:0 0 13px;
+           padding-bottom:13px; border-bottom:1px solid var(--edge)}
   #seedbox input[type=text]{
     flex:1; min-width:0; background:#171426; border:1px solid var(--edge);
     color:var(--ink); border-radius:9px; padding:11px 13px;
@@ -2027,12 +2027,32 @@ function stampField(canvas){
   gl.bindVertexArray(null);
   gl.disable(gl.BLEND);
 }
+function paintAgents(x2d, w, h){
+  const d = x2d.getImageData(0, 0, w, h).data;
+  const pts = [];
+  for(let i = 0; i < 60000 && pts.length < 12000; i++){
+    const px = (Math.random()*w)|0, py = (Math.random()*h)|0;
+    if(d[(py*w + px)*4] > 140){ pts.push(px, py); }
+  }
+  const K = Math.min(pts.length >> 1, Math.max(0, N - 1));
+  if(!K) return;
+  const buf = new Float32Array(K*4);
+  for(let i = 0; i < K; i++){
+    buf[i*4+0] = pts[i*2+0];
+    buf[i*4+1] = pts[i*2+1];
+    buf[i*4+2] = Math.random()*Math.PI*2;
+    buf[i*4+3] = 0;
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, agentBuf[src]);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 16, buf);   // index 0 är hjälten
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+}
 $("seed2").onclick = e => {
   const box = $("seedbox");
   const open = box.style.display === "none";
   box.style.display = open ? "flex" : "none";
   e.target.classList.toggle("on", open);
-  if(open){ box.scrollIntoView({ block: "nearest" }); $("seedtext").focus(); }
+  if(open){ $("panel").prepend(box); box.scrollIntoView({ block: "nearest" }); $("seedtext").focus(); }
 };
 $("seedgo").onclick = () => {
   const txt = $("seedtext").value.trim();
@@ -2048,6 +2068,7 @@ $("seedgo").onclick = () => {
   if(tw > W * 0.92){ fs *= (W * 0.92) / tw; x.font = `700 ${fs}px ui-sans-serif,system-ui,sans-serif`; }
   x.fillText(txt.toUpperCase(), W/2, H/2);
   stampField(c);
+  paintAgents(x, W, H);
   pushWave(W/2, H/2);
 };
 $("seedtext").addEventListener("keydown", e => { if(e.key === "Enter") $("seedgo").click(); });
@@ -2073,6 +2094,7 @@ $("seedimg").onchange = () => {
     }
     x.putImageData(d, 0, 0);
     stampField(c);
+    paintAgents(x, W, H);
     pushWave(W/2, H/2);
   };
   img.src = URL.createObjectURL(f);
