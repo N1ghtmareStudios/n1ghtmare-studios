@@ -94,6 +94,14 @@
     max-height:calc(100vh - 96px); overflow-y:auto;
   }
   #panel.open{transform:none}
+  #replay{
+    position:fixed; z-index:5; right:22px; display:none;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 96px);
+    width:48px; height:48px; border-radius:50%;
+    background:color-mix(in srgb, var(--chrome) 92%, transparent);
+    border:2px solid var(--glow); color:var(--glow);
+    font-size:20px; cursor:pointer; backdrop-filter:blur(14px)}
+  #replay.show{display:block}
   #toggle{
     position:fixed; z-index:5; right:14px;
     bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
@@ -260,6 +268,7 @@
   </div>
 </div>
 <button id="toggle" aria-label="Controls">✳</button>
+<button id="replay" aria-label="Replay seed">↻</button>
 
 <div id="nogl">This device lacks WebGL2 — the GPU version cannot run here.</div>
 
@@ -2027,6 +2036,8 @@ function stampField(canvas){
   gl.bindVertexArray(null);
   gl.disable(gl.BLEND);
 }
+let replaySeed = null;
+function armReplay(fn){ replaySeed = fn; $("replay").classList.add("show"); }
 function paintAgents(x2d, w, h){
   const d = x2d.getImageData(0, 0, w, h).data;
   const pts = [];
@@ -2038,8 +2049,8 @@ function paintAgents(x2d, w, h){
   if(!K) return;
   const buf = new Float32Array(K*4);
   for(let i = 0; i < K; i++){
-    buf[i*4+0] = pts[i*2+0];
-    buf[i*4+1] = pts[i*2+1];
+    buf[i*4+0] = pts[i*2+0] * W / w;
+    buf[i*4+1] = pts[i*2+1] * H / h;
     buf[i*4+2] = Math.random()*Math.PI*2;
     buf[i*4+3] = 0;
   }
@@ -2070,6 +2081,7 @@ $("seedgo").onclick = () => {
   stampField(c);
   paintAgents(x, W, H);
   pushWave(W/2, H/2);
+  armReplay(() => $("seedgo").onclick());
 };
 $("seedtext").addEventListener("keydown", e => { if(e.key === "Enter") $("seedgo").click(); });
 $("seedimg").onchange = () => {
@@ -2096,6 +2108,7 @@ $("seedimg").onchange = () => {
     stampField(c);
     paintAgents(x, W, H);
     pushWave(W/2, H/2);
+    armReplay(() => { stampField(c); paintAgents(x, c.width, c.height); pushWave(W/2, H/2); });
   };
   img.src = URL.createObjectURL(f);
   $("seedimg").value = "";
@@ -2203,6 +2216,7 @@ renderUserPresets();
 // (Ride along och Show agents utgick — mekaniken ligger kvar vilande
 //  med follow/showAgents alltid false.)
 
+$("replay").onclick = () => { if(replaySeed) replaySeed(); };
 const panel = $("panel"), toggle = $("toggle");
 toggle.onclick = () => {
   const open = panel.classList.toggle("open");
