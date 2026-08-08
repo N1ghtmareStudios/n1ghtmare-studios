@@ -1,0 +1,1550 @@
+<title>Tendril</title>
+<style>
+  :root{
+    --void:#07060b;
+    --chrome:#0f0d16;
+    --edge:#241f33;
+    --ink:#d9d3e6;
+    --dim:#7b7391;
+    --glow:#e0a154;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; background:var(--void); color:var(--ink); overflow:hidden;
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  #stage,#ovl{position:fixed; inset:0; display:block; width:100%; height:100%}
+  #ovl{pointer-events:none; z-index:2}
+
+  #mark{
+    position:fixed; top:calc(env(safe-area-inset-top,0px) + 16px); left:18px; z-index:3;
+    pointer-events:none; transition:opacity .8s ease;
+  }
+  #mark h1{
+    margin:0; font:400 15px/1 "Iowan Old Style",Palatino,Georgia,serif;
+    letter-spacing:.34em; text-transform:uppercase; color:var(--glow);
+  }
+  #mark p{margin:7px 0 0; font-size:11px; letter-spacing:.13em;
+          text-transform:uppercase; color:var(--dim)}
+  body.touched #mark{opacity:0}
+
+  /* förklaringsrad som bara syns i agentläget */
+  #teach{
+    position:fixed; z-index:3; left:0; right:0;
+    top:calc(env(safe-area-inset-top,0px) + 14px);
+    text-align:center; pointer-events:none; opacity:0; transition:opacity .4s ease;
+    font-size:12px; letter-spacing:.04em; color:var(--dim); padding:0 20px;
+  }
+  #teach b{color:var(--glow); font-weight:600}
+  body.teaching #teach{opacity:1}
+  body.teaching #mark{opacity:0}
+
+  #gamehud{
+    position:fixed; z-index:3; left:0; right:0;
+    top:calc(env(safe-area-inset-top,0px) + 12px);
+    text-align:center; pointer-events:none; opacity:0; transition:opacity .4s ease;
+  }
+  #glives{font-size:22px; letter-spacing:.16em; color:#ff5a4d;
+          text-shadow:0 0 12px rgba(255,90,77,.75), 0 1px 3px rgba(0,0,0,.85)}
+  #gscore{margin-top:4px; font:700 26px/1.1 ui-monospace,Menlo,monospace; color:var(--glow);
+          letter-spacing:.02em; font-variant-numeric:tabular-nums;
+          text-shadow:0 0 12px rgba(224,161,84,.5), 0 1px 4px rgba(0,0,0,.85)}
+  #ghint{margin-top:4px; font-size:11px; letter-spacing:.14em;
+         text-transform:uppercase; color:var(--dim); text-shadow:0 1px 3px rgba(0,0,0,.9)}
+  body.gaming #gamehud{opacity:1}
+  body.gaming #mark{opacity:0}
+
+  #gameover{
+    position:fixed; inset:0; z-index:6; display:grid; place-items:center;
+    background:color-mix(in srgb, var(--void) 62%, transparent);
+    backdrop-filter:blur(3px); opacity:0; pointer-events:none;
+    transition:opacity .35s ease;
+  }
+  body.gameover #gameover{opacity:1; pointer-events:auto}
+  .go-card{
+    text-align:center; padding:30px 34px;
+    background:color-mix(in srgb, var(--chrome) 94%, transparent);
+    border:1px solid var(--edge); border-radius:18px; min-width:230px;
+  }
+  .go-title{font:400 34px/1 "Iowan Old Style",Palatino,Georgia,serif;
+            letter-spacing:.14em; text-transform:uppercase; color:var(--glow)}
+  .go-score{margin-top:16px; font:600 22px/1.2 ui-monospace,Menlo,monospace; color:var(--ink)}
+  .go-best{margin-top:4px; font:12px/1.4 ui-monospace,Menlo,monospace; color:var(--dim);
+           letter-spacing:.12em; text-transform:uppercase}
+  #again{
+    margin-top:20px; background:#1e1728; border:1px solid var(--glow); color:var(--glow);
+    border-radius:9px; padding:12px 22px; font:600 12px/1 inherit;
+    letter-spacing:.14em; text-transform:uppercase; cursor:pointer;
+  }
+
+  #panel{
+    position:fixed; z-index:4; left:12px; right:12px;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+    background:color-mix(in srgb, var(--chrome) 92%, transparent);
+    border:1px solid var(--edge); border-radius:14px;
+    backdrop-filter:blur(14px); padding:12px 14px 14px;
+    transform:translateY(calc(100% + 24px)); transition:transform .32s cubic-bezier(.3,.8,.4,1);
+    max-width:520px; margin:0 auto;
+  }
+  #panel.open{transform:none}
+  #toggle{
+    position:fixed; z-index:5; right:14px;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+    width:46px; height:46px; border-radius:50%;
+    background:color-mix(in srgb, var(--chrome) 92%, transparent);
+    border:1px solid var(--edge); color:var(--glow);
+    backdrop-filter:blur(14px); font-size:19px; cursor:pointer;
+    display:grid; place-items:center; transition:transform .32s cubic-bezier(.3,.8,.4,1);
+  }
+  @media (prefers-reduced-motion:reduce){ #panel,#toggle{transition:none} }
+
+  .presets{display:flex; gap:7px; margin-bottom:12px}
+  .presets button{
+    flex:1; background:#171426; border:1px solid var(--edge); color:var(--dim);
+    border-radius:8px; padding:9px 4px; font:600 11px/1 inherit;
+    letter-spacing:.11em; text-transform:uppercase; cursor:pointer;
+  }
+  .presets button.on{border-color:var(--glow); color:var(--glow); background:#1e1728}
+
+  .sl{display:grid; grid-template-columns:74px 1fr 44px; align-items:center;
+      gap:11px; margin-bottom:8px}
+  .sl label{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--dim)}
+  .sl output{font:11px/1 ui-monospace,Menlo,monospace; color:var(--ink);
+             text-align:right; font-variant-numeric:tabular-nums}
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:22px;
+                    background:none; cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:2px; background:var(--edge)}
+  input[type=range]::-moz-range-track{height:2px; background:var(--edge)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--glow); margin-top:-6.5px}
+  input[type=range]::-moz-range-thumb{
+    width:15px; height:15px; border:0; border-radius:50%; background:var(--glow)}
+  input[type=range]:focus-visible{outline:2px solid var(--glow); outline-offset:4px}
+
+  .foot{display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+        margin-top:11px; padding-top:11px; border-top:1px solid var(--edge)}
+  .foot button{
+    background:none; border:1px solid var(--edge); color:var(--dim);
+    border-radius:7px; padding:8px 13px; font:600 11px/1 inherit;
+    letter-spacing:.1em; text-transform:uppercase; cursor:pointer; white-space:nowrap;
+  }
+  .foot button:hover{color:var(--glow); border-color:var(--glow)}
+  .foot button.on{color:var(--glow); border-color:var(--glow); background:#1e1728}
+  .foot span{margin-left:auto; font:11px/1 ui-monospace,Menlo,monospace;
+             color:var(--dim); font-variant-numeric:tabular-nums}
+
+  #nogl{
+    position:fixed; inset:0; z-index:9; display:none; place-items:center;
+    padding:32px; text-align:center; color:var(--dim);
+  }
+  body.nogl #nogl{display:grid}
+</style>
+
+<canvas id="stage"></canvas>
+<canvas id="ovl"></canvas>
+
+<div id="mark">
+  <h1>Tendril</h1>
+  <p>Dra för att mata — nyp eller rulla för att zooma</p>
+</div>
+
+<div id="teach">
+  Varje prick är en agent. Den inringade känner av <b>tre punkter</b> framför sig
+  och svänger mot den starkaste doften.
+</div>
+
+<div id="gamehud">
+  <div id="glives">♥♥♥</div>
+  <div id="gscore">0</div>
+  <div id="ghint">NIVÅ 1</div>
+</div>
+
+<div id="gameover">
+  <div class="go-card">
+    <div class="go-title">Slut</div>
+    <div id="goScore" class="go-score">Poäng 0</div>
+    <div id="goBest" class="go-best">Bästa 0</div>
+    <button id="again">Spela igen</button>
+  </div>
+</div>
+
+<div id="panel">
+  <div class="presets">
+    <button data-p="0" class="on">Ådror</button>
+    <button data-p="1">Väv</button>
+    <button data-p="2">Storm</button>
+  </div>
+  <div class="sl"><label>Detalj</label><input id="sZoom" type="range" min="10" max="50" step="5"><output></output></div>
+  <div class="sl"><label>Känselspröt</label><input id="sDist" type="range" min="2" max="30" step="1"><output></output></div>
+  <div class="sl"><label>Svängning</label><input id="sTurn" type="range" min="5" max="90" step="1"><output></output></div>
+  <div class="sl"><label>Förfall</label><input id="sDecay" type="range" min="80" max="99" step="1"><output></output></div>
+  <div class="sl"><label>Antal</label><input id="sCount" type="range" min="5" max="500" step="5"><output></output></div>
+  <div class="foot">
+    <button id="play">Spela</button>
+    <button id="reset">Så om</button>
+    <button id="palette">Färg: Glöd</button>
+    <button id="sparks">Gnistor</button>
+    <button id="ride">Åk med</button>
+    <button id="agents">Visa agenter</button>
+    <span id="hud">—</span>
+  </div>
+</div>
+<button id="toggle" aria-label="Reglage">✳</button>
+
+<div id="nogl">Den här enheten saknar WebGL2 — GPU-versionen kan inte köras här.</div>
+
+<script>
+(() => {
+"use strict";
+
+const cvs = document.getElementById("stage");
+const ovl = document.getElementById("ovl");
+const octx = ovl.getContext("2d");
+const gl = cvs.getContext("webgl2", { alpha:false, antialias:false, preserveDrawingBuffer:false });
+
+if(!gl){ document.body.classList.add("nogl"); return; }
+// R16F-renderbara mål — annars ingen GPU-simulering.
+if(!gl.getExtension("EXT_color_buffer_float")){ document.body.classList.add("nogl"); return; }
+
+const MOBILE = matchMedia("(max-width:820px)").matches;
+
+// SCALE = skärmpixlar per simruta. Lågt värde = fler rutor = finare
+// struktur och mer att se. Högt = grovare, som att gå närmare.
+let SCALE = 2.0;
+
+// Vy = ren renderingstransform ovanpå simuleringen: zoom och mittpunkt
+// i fält-uv. z=1 visar hela världen på skärmen, man zoomar in därifrån.
+const view = { z: 1, cx: 0.5, cy: 0.5 };
+
+// Världen är större än skärmen — kolonin är ett stort, sammanhängande nät
+// man kan zooma ut till (hela nätet fyller skärmen) eller dyka in i.
+const WORLD = 1.7;
+
+let W = 0, H = 0;
+
+// Simparametrar — samma som CPU-prototypen. sensorAngle i radianer.
+const P = {
+  sensorDist: 9, sensorAngle: 0.42, turn: 0.38,
+  speed: 1.0, decay: 0.94, deposit: 0.22, count: 55
+};
+
+// De tre verifierade förinställningarna, oförändrade.
+const PRESETS = [
+  { sensorDist:9,  turn:0.38, decay:0.94, count:55, sensorAngle:0.42, speed:1.0,  deposit:0.22 },
+  { sensorDist:22, turn:0.14, decay:0.97, count:70, sensorAngle:0.65, speed:1.25, deposit:0.16 },
+  { sensorDist:4,  turn:0.85, decay:0.88, count:85, sensorAngle:0.30, speed:1.6,  deposit:0.30 }
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  GL-HJÄLPARE
+// ═══════════════════════════════════════════════════════════════════
+function shader(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src.trim()); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s) + "\n" + src);
+  return s;
+}
+function program(vs, fs, tfVaryings){
+  const p = gl.createProgram();
+  gl.attachShader(p, shader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
+  if(tfVaryings) gl.transformFeedbackVaryings(p, tfVaryings, gl.INTERLEAVED_ATTRIBS);
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS))
+    throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+function uni(p){
+  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for(let i=0;i<n;i++){ const info = gl.getActiveUniform(p, i);
+    u[info.name] = gl.getUniformLocation(p, info.name); }
+  return u;
+}
+
+// Delad heltäckande triangel för fullskärmspassen (uv 0..1, icke-flippad).
+const QUAD_VS = `#version 300 es
+out vec2 v_uv;
+void main(){
+  vec2 p = vec2((gl_VertexID<<1)&2, gl_VertexID&2);
+  v_uv = p;
+  gl_Position = vec4(p*2.0-1.0, 0.0, 1.0);
+}`;
+
+// ── AGENT-UPPDATERING (transform feedback) ──────────────────────────
+// Vinkeladdition ersatt av rena cos/sin — GPU:n bryr sig inte om trig-
+// kostnaden, och koden speglar CPU-regeln rakt av.
+const UPDATE_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec4 a_data;   // x, y, vinkel, oanvänd
+uniform sampler2D u_trail;
+uniform vec2  u_size;
+uniform float u_sd, u_sa, u_turn, u_speed, u_frame;
+out vec4 v_data;
+
+uint hash(uint x){ x^=x>>16; x*=0x7feb352du; x^=x>>15; x*=0x846ca68bu; x^=x>>16; return x; }
+float sense(vec2 p){ return texture(u_trail, p/u_size).r; }
+
+void main(){
+  float x=a_data.x, y=a_data.y, a=a_data.z;
+  vec2 pos = vec2(x,y);
+  float aL = a - u_sa, aR = a + u_sa;
+  float F = sense(pos + vec2(cos(a),  sin(a))  * u_sd);
+  float L = sense(pos + vec2(cos(aL), sin(aL)) * u_sd);
+  float R = sense(pos + vec2(cos(aR), sin(aR)) * u_sd);
+
+  float na = a;
+  if(F > L && F > R){ }
+  else if(F < L && F < R){
+    uint seed = uint(gl_VertexID)*747796405u + uint(u_frame)*2891336453u;
+    float rnd = float(hash(seed) & 0xffffffu) / 16777216.0;
+    na = a + (rnd < 0.5 ? -u_turn : u_turn);
+  }
+  else if(R > L){ na = a + u_turn; }
+  else if(L > R){ na = a - u_turn; }
+
+  float nx = mod(x + cos(na)*u_speed, u_size.x);
+  float ny = mod(y + sin(na)*u_speed, u_size.y);
+  v_data = vec4(nx, ny, na, 0.0);
+  gl_Position = vec4(0.0);   // rasteriseras bort
+  gl_PointSize = 1.0;
+}`;
+const DISCARD_FS = `#version 300 es
+precision highp float; out vec4 o; void main(){ o = vec4(0.0); }`;
+
+// ── AVSÄTTNING: agenten ritas som en punkt, additiv blandning ───────
+const DEPOSIT_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec4 a_data;
+uniform vec2 u_size;
+void main(){
+  gl_Position = vec4(a_data.xy / u_size * 2.0 - 1.0, 0.0, 1.0);
+  gl_PointSize = 1.0;
+}`;
+const DEPOSIT_FS = `#version 300 es
+precision highp float;
+uniform float u_deposit;
+out vec4 o;
+void main(){ o = vec4(u_deposit, 0.0, 0.0, 0.0); }`;
+
+// ── MAT: mjuk skiva som läggs till doftfältet ───────────────────────
+const FEED_VS = `#version 300 es
+precision highp float;
+uniform vec2 u_pos, u_size;
+uniform float u_r;
+void main(){
+  gl_Position = vec4(u_pos / u_size * 2.0 - 1.0, 0.0, 1.0);
+  gl_PointSize = u_r * 2.0;
+}`;
+const FEED_FS = `#version 300 es
+precision highp float;
+uniform float u_amp;
+out vec4 o;
+void main(){
+  float d = length(gl_PointCoord - 0.5) * 2.0;
+  float f = max(0.0, 1.0 - d);
+  o = vec4(f * f * u_amp, 0.0, 0.0, 0.0);   // mjuk klocka, stark mitt
+}`;
+
+// ── DIFFUSION: 3×3-lådsuddning × förfall, toroidalt via REPEAT ──────
+// CPU:ns två separabla 1/3-pass ihopvikta blir exakt en 3×3-medelvärds-
+// suddning gånger k. Ett pass räcker på GPU.
+const DIFFUSE_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_trail;
+uniform vec2  u_texel;
+uniform float u_decay;
+in vec2 v_uv;
+out vec4 o;
+void main(){
+  float s = 0.0;
+  for(int j=-1;j<=1;j++)
+    for(int i=-1;i<=1;i++)
+      s += texture(u_trail, v_uv + vec2(float(i),float(j))*u_texel).r;
+  o = vec4(s / 9.0 * u_decay, 0.0, 0.0, 0.0);
+}`;
+
+// ── EXPONERING: medelvärdet läses ur högsta mipnivån, följs mjukt ───
+// Samma lösning som CPU:n, men snittet räknas av GPU:n (mipmap) och
+// hålls i en 1×1-textur så ingen synkron återläsning behövs.
+const LEVEL_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_trail;
+uniform sampler2D u_prev;
+out vec4 o;
+void main(){
+  float mean = textureLod(u_trail, vec2(0.5), 20.0).r;
+  float prev = texelFetch(u_prev, ivec2(0,0), 0).r;
+  float lvl  = prev + (mean - prev) * 0.08;
+  o = vec4(max(lvl, 1e-4), 0.0, 0.0, 0.0);
+}`;
+
+// ── VISNING: Reinhard-tonmappning + färgramp ur LUT ─────────────────
+const DISPLAY_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_trail;
+uniform sampler2D u_lut;
+uniform sampler2D u_level;
+uniform vec3 u_view;             // mittpunkt.xy, zoom
+uniform vec2 u_bloom;            // styrka, mip-nivå
+in vec2 v_uv;
+out vec4 o;
+void main(){
+  vec2 s = vec2(v_uv.x, 1.0 - v_uv.y);
+  vec2 uv = (s - 0.5) / u_view.z + u_view.xy;
+  float t = textureLod(u_trail, uv, 0.0).r;
+  float b = textureLod(u_trail, uv, u_bloom.y).r;   // suddig kopia = glöd
+  float level = texelFetch(u_level, ivec2(0,0), 0).r;
+  float k = level * 5.67;
+  float tone = t / (t + k);           // Reinhard, ingen exp()
+  float glow = b / (b + k);
+  float m = clamp(tone + glow * u_bloom.x, 0.0, 1.0);
+  o = texture(u_lut, vec2(m, 0.5));
+}`;
+
+// ── AGENTPRICKAR / GNISTOR (ritas till skärmen) ─────────────────────
+const DOTS_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec4 a_data;
+uniform vec2 u_size;
+uniform vec3 u_view;
+uniform float u_pt;
+void main(){
+  vec2 uv = a_data.xy / u_size;
+  vec2 s = (uv - u_view.xy) * u_view.z + 0.5;
+  gl_Position = vec4(s.x*2.0-1.0, 1.0 - s.y*2.0, 0.0, 1.0);
+  gl_PointSize = u_pt;
+}`;
+// mjuk, glödande mote — additiv blandning gör dem till eldflugor
+const DOTS_FS = `#version 300 es
+precision highp float;
+uniform vec3 u_tint;
+out vec4 o;
+void main(){
+  float d = length(gl_PointCoord - 0.5) * 2.0;
+  float a = max(0.0, 1.0 - d); a *= a;
+  o = vec4(u_tint * a, a);
+}`;
+
+// ── SPEL: mät fältets ljusstyrka vid varje spor (för att se när en tråd
+//    nått fram). Ritar N punkter till en liten RGBA8-textur vi kan läsa. ─
+const PROBE_VS = `#version 300 es
+precision highp float;
+uniform vec2 u_spore[8];
+out vec2 v_uv;
+void main(){
+  v_uv = u_spore[gl_VertexID];
+  float x = ((float(gl_VertexID)+0.5)/8.0)*2.0 - 1.0;
+  gl_Position = vec4(x, 0.0, 0.0, 1.0);
+  gl_PointSize = 1.0;
+}`;
+const PROBE_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_trail;
+uniform sampler2D u_level;
+in vec2 v_uv;
+out vec4 o;
+void main(){
+  // ljusstyrka relativt fältets medel → oberoende av exponering.
+  // en matad tråd ligger många gånger över medel, en vanlig åder några.
+  float t  = texture(u_trail, v_uv).r;
+  float lv = max(texelFetch(u_level, ivec2(0,0), 0).r, 1e-3);
+  o = vec4(clamp(t / (lv * 12.0), 0.0, 1.0), 0.0, 0.0, 1.0);
+}`;
+
+const progUpdate  = program(UPDATE_VS,  DISCARD_FS, ["v_data"]);
+const progDeposit = program(DEPOSIT_VS, DEPOSIT_FS);
+const progProbe   = program(PROBE_VS,   PROBE_FS);
+const progFeed    = program(FEED_VS,    FEED_FS);
+const progDiffuse = program(QUAD_VS,    DIFFUSE_FS);
+const progLevel   = program(QUAD_VS,    LEVEL_FS);
+const progDisplay = program(QUAD_VS,    DISPLAY_FS);
+const progDots    = program(DOTS_VS,    DOTS_FS);
+
+const uUpdate  = uni(progUpdate);
+const uDeposit = uni(progDeposit);
+const uFeed    = uni(progFeed);
+const uDiffuse = uni(progDiffuse);
+const uLevel   = uni(progLevel);
+const uDisplay = uni(progDisplay);
+const uDots    = uni(progDots);
+const uProbe   = uni(progProbe);
+const uProbeSpore = gl.getUniformLocation(progProbe, "u_spore");
+
+// liten RGBA8-textur att läsa spor-mätningarna ur
+const probeBuf = new Uint8Array(8 * 4);
+const probeTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, probeTex);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 8, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+const probeFBO = gl.createFramebuffer();
+gl.bindFramebuffer(gl.FRAMEBUFFER, probeFBO);
+gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, probeTex, 0);
+gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+// ── färgramp → 256×1 LUT-textur ─────────────────────────────────────
+// Flera paletter att byta mellan; den första är prototypens verifierade.
+const lutTex = gl.createTexture();
+const PALETTES = [
+  { name:"Glöd", stops:[[0,4,3,9],[.22,32,16,68],[.45,118,28,110],[.70,224,108,58],[.88,250,198,120],[1,255,250,238]] },
+  { name:"Is",   stops:[[0,3,5,14],[.30,12,34,78],[.58,28,120,180],[.82,120,214,236],[1,236,252,255]] },
+  { name:"Spor", stops:[[0,4,8,6],[.30,18,54,28],[.56,54,130,44],[.80,168,214,86],[1,240,255,206]] },
+  { name:"Neon", stops:[[0,6,3,12],[.26,70,10,86],[.50,190,20,120],[.74,244,66,150],[.90,255,150,110],[1,255,240,220]] },
+];
+let palIdx = 0;
+function buildLUT(stops){
+  const data = new Uint8Array(256*4);
+  for(let i=0;i<256;i++){
+    const t = i/255;
+    let a = stops[0], b = stops[stops.length-1];
+    for(let s=0;s<stops.length-1;s++)
+      if(t >= stops[s][0] && t <= stops[s+1][0]){ a = stops[s]; b = stops[s+1]; break; }
+    const f = (t-a[0]) / Math.max(1e-6, b[0]-a[0]);
+    data[i*4+0] = (a[1]+(b[1]-a[1])*f)|0;
+    data[i*4+1] = (a[2]+(b[2]-a[2])*f)|0;
+    data[i*4+2] = (a[3]+(b[3]-a[3])*f)|0;
+    data[i*4+3] = 255;
+  }
+  gl.bindTexture(gl.TEXTURE_2D, lutTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+buildLUT(PALETTES[0].stops);
+
+// ═══════════════════════════════════════════════════════════════════
+//  BUFFERTAR OCH TEXTURER
+// ═══════════════════════════════════════════════════════════════════
+const emptyVAO = gl.createVertexArray();
+
+// Doftfält: två R16F-texturer (ping-pong) + var sin FBO. Mipmaps för
+// exponeringsmedelvärdet. REPEAT ger toroidal topologi.
+let trailTex = [null, null], trailFBO = [null, null], cur = 0;
+let levelTex = [null, null], levelFBO = [null, null], lcur = 0;
+
+function makeTrail(w, h){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, w, h, 0, gl.RED, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  return [tex, fbo];
+}
+function make1x1(val){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, 1, 1, 0, gl.RED, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.viewport(0,0,1,1);
+  gl.clearColor(val, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  return [tex, fbo];
+}
+
+// Agentbuffertar (vec4/agent) + VAO per buffert, roteras src↔dst.
+let agentBuf = [null, null], agentVAO = [null, null], src = 0;
+let N = 0, tf = null;
+
+function makeAgentBuf(){
+  const buf = gl.createBuffer();
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, N*16, gl.DYNAMIC_COPY);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);   // annars ligger bufferten kvar på
+  return [buf, vao];                       // generiska ARRAY_BUFFER och krockar med TF
+}
+
+function allocate(){
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cvs.width  = Math.round(innerWidth  * dpr);
+  cvs.height = Math.round(innerHeight * dpr);
+  cvs.style.width  = innerWidth + "px";
+  cvs.style.height = innerHeight + "px";
+  ovl.width  = Math.round(innerWidth  * dpr);
+  ovl.height = Math.round(innerHeight * dpr);
+  ovl.style.width  = innerWidth + "px";
+  ovl.style.height = innerHeight + "px";
+
+  W = Math.max(64, Math.round(cvs.width  / SCALE * WORLD));
+  H = Math.max(64, Math.round(cvs.height / SCALE * WORLD));
+
+  for(let i=0;i<2;i++){
+    if(trailTex[i]) gl.deleteTexture(trailTex[i]);
+    if(trailFBO[i]) gl.deleteFramebuffer(trailFBO[i]);
+    [trailTex[i], trailFBO[i]] = makeTrail(W, H);
+  }
+  cur = 0;
+  clearTrail(0); clearTrail(1);
+
+  if(!levelTex[0]){
+    [levelTex[0], levelFBO[0]] = make1x1(0.5);
+    [levelTex[1], levelFBO[1]] = make1x1(0.5);
+  }
+}
+
+function clearTrail(i){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[i]);
+  gl.viewport(0,0,W,H);
+  gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SÅDD
+// ═══════════════════════════════════════════════════════════════════
+function seed(){
+  // Samma täthet som prototypen, men utspritt över hela den större världen.
+  N = Math.round(P.count * 1000 * WORLD * WORLD);
+  for(let i=0;i<2;i++){
+    if(agentBuf[i]) gl.deleteBuffer(agentBuf[i]);
+    if(agentVAO[i]) gl.deleteVertexArray(agentVAO[i]);
+    [agentBuf[i], agentVAO[i]] = makeAgentBuf();
+  }
+  src = 0;
+  if(!tf) tf = gl.createTransformFeedback();
+
+  // Jämn sådd över hela fältet → ett rymdfyllande nät, kant till kant,
+  // istället för en ensam klick mitt i svart.
+  const data = new Float32Array(N*4);
+  for(let i=0;i<N;i++){
+    data[i*4+0] = Math.random()*W;
+    data[i*4+1] = Math.random()*H;
+    data[i*4+2] = Math.random()*Math.PI*2;
+    data[i*4+3] = 0;
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, agentBuf[0]);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+  gl.bindBuffer(gl.ARRAY_BUFFER, agentBuf[1]);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);   // håll TF-målen borta från generiska bindningen
+  clearTrail(0); clearTrail(1); cur = 0;
+}
+
+// Byt upplösning utan att slänga mönstret: doftfältet samplas om till
+// det nya rutnätet (linjär blit) och agenterna flyttas proportionellt.
+// Zoomen blir mjuk istället för en omstart.
+function setZoom(next){
+  const oW = W, oH = H;
+  // spara gamla texturer så blitten kan läsa dem
+  const keepTex = trailTex.slice(), keepFBO = trailFBO.slice(), keepCur = cur;
+  trailTex = [null, null]; trailFBO = [null, null];
+
+  SCALE = next;
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cvs.width  = Math.round(innerWidth  * dpr);
+  cvs.height = Math.round(innerHeight * dpr);
+  cvs.style.width  = innerWidth + "px";
+  cvs.style.height = innerHeight + "px";
+  ovl.width = cvs.width; ovl.height = cvs.height;
+  ovl.style.width = innerWidth + "px"; ovl.style.height = innerHeight + "px";
+  W = Math.max(64, Math.round(cvs.width  / SCALE * WORLD));
+  H = Math.max(64, Math.round(cvs.height / SCALE * WORLD));
+  for(let i=0;i<2;i++) [trailTex[i], trailFBO[i]] = makeTrail(W, H);
+  cur = 0;
+  clearTrail(0); clearTrail(1);
+
+  // blit gamla fältet → nya trailTex[0] med linjär skalning
+  gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[0]);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(progDisplayCopy);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, keepTex[keepCur]);
+  gl.uniform1i(uCopy.u_src, 0);
+  gl.bindVertexArray(emptyVAO);
+  gl.disable(gl.BLEND);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.bindVertexArray(null);
+
+  for(let i=0;i<2;i++){ gl.deleteTexture(keepTex[i]); gl.deleteFramebuffer(keepFBO[i]); }
+
+  // skala agentpositioner proportionellt (transform feedback)
+  const fx = W/oW, fy = H/oH;
+  scaleAgents(fx, fy);
+}
+
+// enkel kopieringsshader för blitten (icke-flippad, ren sampling)
+const COPY_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_src;
+in vec2 v_uv;
+out vec4 o;
+void main(){ o = vec4(texture(u_src, v_uv).r, 0.0, 0.0, 0.0); }`;
+const progDisplayCopy = program(QUAD_VS, COPY_FS);
+const uCopy = uni(progDisplayCopy);
+
+// skala agenter via transform feedback (in-place: src → dst → swap)
+const SCALE_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec4 a_data;
+uniform vec2 u_f;
+out vec4 v_data;
+void main(){
+  v_data = vec4(a_data.xy * u_f, a_data.z, 0.0);
+  gl_Position = vec4(0.0); gl_PointSize = 1.0;
+}`;
+const progScale = program(SCALE_VS, DISCARD_FS, ["v_data"]);
+const uScale = uni(progScale);
+
+function scaleAgents(fx, fy){
+  const dst = src ^ 1;
+  gl.useProgram(progScale);
+  gl.uniform2f(uScale.u_f, fx, fy);
+  gl.bindVertexArray(agentVAO[src]);
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, agentBuf[dst]);
+  gl.enable(gl.RASTERIZER_DISCARD);
+  gl.beginTransformFeedback(gl.POINTS);
+  gl.drawArrays(gl.POINTS, 0, N);
+  gl.endTransformFeedback();
+  gl.disable(gl.RASTERIZER_DISCARD);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+  gl.bindVertexArray(null);
+  src = dst;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MAT
+// ═══════════════════════════════════════════════════════════════════
+let food = null;          // matningspunkt i rutkoordinater (för simuleringen)
+let foodPrev = null;      // förra bildens punkt — för att måla ett obrutet streck
+let feedClient = null;    // samma i skärm-px (för den lysande återkopplingen)
+const glowTrail = [];     // kort historik av fingerpunkter → kometsvans
+
+function feed(){
+  if(!food) return;
+  // Måla en obruten, lysande tråd längs dragets väg — inte bara en prick.
+  const r = Math.max(18, Math.round(Math.min(W,H) * 0.05));
+  gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[cur]);
+  gl.viewport(0,0,W,H);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null); // lossa målet från samplern
+  gl.useProgram(progFeed);
+  gl.uniform2f(uFeed.u_size, W, H);
+  gl.uniform1f(uFeed.u_r, r);
+  gl.uniform1f(uFeed.u_amp, 1.1);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+  gl.bindVertexArray(emptyVAO);
+
+  let x0 = food.x, y0 = food.y, steps = 1;
+  if(foodPrev){
+    const dx = food.x - foodPrev.x, dy = food.y - foodPrev.y;
+    const dist = Math.hypot(dx, dy);
+    if(dist < Math.min(W,H) * 0.5){            // hoppa över om draget wrappat
+      steps = Math.min(48, 1 + Math.ceil(dist / (r * 0.5)));
+      x0 = foodPrev.x; y0 = foodPrev.y;
+    }
+  }
+  for(let i=1;i<=steps;i++){
+    const f = i/steps;
+    gl.uniform2f(uFeed.u_pos, x0 + (food.x-x0)*f, y0 + (food.y-y0)*f);
+    gl.drawArrays(gl.POINTS, 0, 1);
+  }
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+  foodPrev = { x: food.x, y: food.y };
+}
+
+// Spruta liv ur fingret: en roterande skiva agenter teleporteras till
+// fingret med utåtriktade vinklar → de rusar ut och nätet lever upp.
+let emitCursor = 0;
+const emitBuf = new Float32Array(800 * 4);
+function emit(){
+  if(!food) return;
+  const M = N - 1;                          // index 0 reserveras åt hjälte-agenten
+  if(M < 1) return;
+  const K = Math.min(M, 800, Math.max(200, (M * 0.004) | 0));
+  const spread = Math.min(W,H) * 0.02;
+  for(let i=0;i<K;i++){
+    const ang = Math.random() * Math.PI * 2;
+    const rad = Math.random() * spread;
+    emitBuf[i*4+0] = food.x + Math.cos(ang) * rad;
+    emitBuf[i*4+1] = food.y + Math.sin(ang) * rad;
+    emitBuf[i*4+2] = ang;      // pekar utåt
+    emitBuf[i*4+3] = 0;
+  }
+  const start = 1 + emitCursor;             // buffertindex i [1, N)
+  gl.bindBuffer(gl.ARRAY_BUFFER, agentBuf[src]);
+  if(start + K <= N){
+    gl.bufferSubData(gl.ARRAY_BUFFER, start*16, emitBuf.subarray(0, K*4));
+  } else {
+    const first = N - start;
+    gl.bufferSubData(gl.ARRAY_BUFFER, start*16, emitBuf.subarray(0, first*4));
+    gl.bufferSubData(gl.ARRAY_BUFFER, 1*16, emitBuf.subarray(first*4, K*4));
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  emitCursor = (emitCursor + K) % M;
+}
+// skärmpunkt (klient-px) → normaliserad skärm-uv + fält-uv (vy inverterad)
+function screenUV(e){
+  const r = cvs.getBoundingClientRect();
+  const sx = (e.clientX - r.left) / r.width;
+  const sy = (e.clientY - r.top)  / r.height;
+  return { sx, sy,
+           ux: (sx - 0.5)/view.z + view.cx,
+           uy: (sy - 0.5)/view.z + view.cy };
+}
+function toGrid(e){
+  const p = screenUV(e);
+  // fältet är toroidalt — vik in i [0,1) så matning funkar även på plattor
+  const ux = p.ux - Math.floor(p.ux), uy = p.uy - Math.floor(p.uy);
+  return { x: ux*W, y: uy*H };
+}
+
+// ── vy: zooma och panorera ──────────────────────────────────────────
+// Zoom bottnar vid 1 (hela världen syns) — aldrig utzoomat till plattor.
+function clampZoom(){ view.z = Math.min(8, Math.max(1, view.z)); }
+// Håll vyn innanför världen så panorering aldrig visar upprepningar.
+function clampCenter(){
+  const h = 0.5/view.z;
+  view.cx = Math.min(1-h, Math.max(h, view.cx));
+  view.cy = Math.min(1-h, Math.max(h, view.cy));
+}
+function resetView(){ view.z = 1; view.cx = 0.5; view.cy = 0.5; }
+
+const pointers = new Map();
+let mode = null, pan0 = null, pinch0 = null;
+let downX = 0, downY = 0, tapCandidate = false, lastTap = 0;
+
+function startPan(e){
+  const p = screenUV(e);
+  pan0 = { sx: p.sx, sy: p.sy, cx: view.cx, cy: view.cy };
+}
+function updatePan(e){
+  const r = cvs.getBoundingClientRect();
+  const sx = (e.clientX - r.left)/r.width, sy = (e.clientY - r.top)/r.height;
+  view.cx = pan0.cx - (sx - pan0.sx)/view.z;
+  view.cy = pan0.cy - (sy - pan0.sy)/view.z;
+  clampCenter();
+}
+function twoFinger(){
+  const it = [...pointers.values()], a = it[0], b = it[1];
+  const r = cvs.getBoundingClientRect();
+  const ax=(a.x-r.left)/r.width, ay=(a.y-r.top)/r.height;
+  const bx=(b.x-r.left)/r.width, by=(b.y-r.top)/r.height;
+  return { mx:(ax+bx)/2, my:(ay+by)/2, d:Math.hypot(ax-bx, ay-by) };
+}
+function startPinch(){
+  const t = twoFinger();
+  pinch0 = { d: t.d, z: view.z,
+             ux: (t.mx-0.5)/view.z + view.cx,
+             uy: (t.my-0.5)/view.z + view.cy };
+  food = null;
+}
+function updatePinch(){
+  const t = twoFinger();
+  view.z = pinch0.z * (t.d / Math.max(1e-4, pinch0.d)); clampZoom();
+  view.cx = pinch0.ux - (t.mx-0.5)/view.z;   // håll fältpunkten under fingrarnas mitt
+  view.cy = pinch0.uy - (t.my-0.5)/view.z;
+  if(!follow) clampCenter();
+}
+
+cvs.addEventListener("contextmenu", e => e.preventDefault());
+
+cvs.addEventListener("pointerdown", e => {
+  cvs.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  document.body.classList.add("touched");
+  if(pointers.size === 2){ mode = "pinch"; feedClient = null; foodPrev = null; startPinch(); return; }
+  // en pekare: panorera med skift/mitt/höger-knapp, annars mata kolonin
+  if(e.shiftKey || e.button === 1 || e.button === 2){ mode = "pan"; feedClient = null; foodPrev = null; startPan(e); }
+  else { mode = "feed"; food = toGrid(e); foodPrev = null; feedClient = { x:e.clientX, y:e.clientY };
+         downX = e.clientX; downY = e.clientY; tapCandidate = true; }
+});
+cvs.addEventListener("pointermove", e => {
+  if(!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if(mode === "pinch") updatePinch();
+  else if(mode === "pan") updatePan(e);
+  else if(mode === "feed"){
+    food = toGrid(e); feedClient = { x:e.clientX, y:e.clientY };
+    if(Math.hypot(e.clientX-downX, e.clientY-downY) > 8) tapCandidate = false;
+  }
+});
+function liftPointer(e){
+  if(!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  if(pointers.size === 0){
+    if(tapCandidate){                       // dubbeltryck → återställ vyn
+      const now = e.timeStamp || 0;
+      if(now - lastTap < 300) resetView();
+      lastTap = now;
+    }
+    mode = null; food = null; foodPrev = null; feedClient = null; tapCandidate = false;
+  } else if(pointers.size === 1){
+    // ett finger kvar efter nyp: fortsätt panorera, mata inte
+    mode = "pan"; tapCandidate = false; food = null; foodPrev = null; feedClient = null;
+    const q = [...pointers.values()][0];
+    startPan({ clientX:q.x, clientY:q.y });
+  }
+}
+addEventListener("pointerup", liftPointer);
+addEventListener("pointercancel", liftPointer);
+
+cvs.addEventListener("wheel", e => {
+  e.preventDefault();
+  const p = screenUV(e);                     // fältpunkt under pekaren, före zoom
+  view.z *= Math.exp(-e.deltaY * 0.0015); clampZoom();
+  view.cx = p.ux - (p.sx - 0.5)/view.z;      // håll den punkten stilla
+  view.cy = p.uy - (p.sy - 0.5)/view.z;
+  if(!follow) clampCenter();
+  document.body.classList.add("touched");
+}, { passive:false });
+
+cvs.addEventListener("dblclick", e => { e.preventDefault(); resetView(); });
+
+// ═══════════════════════════════════════════════════════════════════
+//  SIMULERINGSPASS
+// ═══════════════════════════════════════════════════════════════════
+let frame = 0;
+
+function step(){
+  const dst = src ^ 1;
+  // 1) uppdatera agenter (känn av fältet, sväng) → agentBuf[dst]
+  // Lämna doft-FBO:n (annars läser samplern ur det bundna målet → loop).
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.useProgram(progUpdate);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, trailTex[cur]);
+  gl.uniform1i(uUpdate.u_trail, 0);
+  gl.uniform2f(uUpdate.u_size, W, H);
+  gl.uniform1f(uUpdate.u_sd, P.sensorDist);
+  gl.uniform1f(uUpdate.u_sa, P.sensorAngle);
+  gl.uniform1f(uUpdate.u_turn, P.turn);
+  gl.uniform1f(uUpdate.u_speed, P.speed);
+  gl.uniform1f(uUpdate.u_frame, frame % 65536);
+  gl.bindVertexArray(agentVAO[src]);
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, agentBuf[dst]);
+  gl.enable(gl.RASTERIZER_DISCARD);
+  gl.beginTransformFeedback(gl.POINTS);
+  gl.drawArrays(gl.POINTS, 0, N);
+  gl.endTransformFeedback();
+  gl.disable(gl.RASTERIZER_DISCARD);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+  gl.bindVertexArray(null);
+  src = dst;
+
+  // 2) avsätt doft vid de nya positionerna (additivt) i trailTex[cur]
+  gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[cur]);
+  gl.viewport(0,0,W,H);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null); // lossa målet från samplern
+  gl.useProgram(progDeposit);
+  gl.uniform2f(uDeposit.u_size, W, H);
+  gl.uniform1f(uDeposit.u_deposit, P.deposit);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+  gl.bindVertexArray(agentVAO[src]);
+  gl.drawArrays(gl.POINTS, 0, N);
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+}
+
+function diffuse(){
+  const dst = cur ^ 1;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[dst]);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(progDiffuse);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, trailTex[cur]);
+  gl.uniform1i(uDiffuse.u_trail, 0);
+  gl.uniform2f(uDiffuse.u_texel, 1/W, 1/H);
+  gl.uniform1f(uDiffuse.u_decay, P.decay);
+  gl.bindVertexArray(emptyVAO);
+  gl.disable(gl.BLEND);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.bindVertexArray(null);
+  cur = dst;
+}
+
+function exposure(){
+  // medelvärdet ligger i högsta mipnivån av det aktuella fältet
+  gl.bindTexture(gl.TEXTURE_2D, trailTex[cur]);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  const ldst = lcur ^ 1;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, levelFBO[ldst]);
+  gl.viewport(0,0,1,1);
+  gl.useProgram(progLevel);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, trailTex[cur]);
+  gl.uniform1i(uLevel.u_trail, 0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, levelTex[lcur]);
+  gl.uniform1i(uLevel.u_prev, 1);
+  gl.bindVertexArray(emptyVAO);
+  gl.disable(gl.BLEND);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.bindVertexArray(null);
+  lcur = ldst;
+}
+
+function display(){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,cvs.width,cvs.height);
+  gl.useProgram(progDisplay);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, trailTex[cur]);
+  gl.uniform1i(uDisplay.u_trail, 0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, lutTex);
+  gl.uniform1i(uDisplay.u_lut, 1);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, levelTex[lcur]);
+  gl.uniform1i(uDisplay.u_level, 2);
+  gl.uniform3f(uDisplay.u_view, view.cx, view.cy, view.z);
+  gl.uniform2f(uDisplay.u_bloom, 0.55, 3.0);   // neonglöd: styrka, mip-nivå
+  gl.bindVertexArray(emptyVAO);
+  gl.disable(gl.BLEND);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.bindVertexArray(null);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  AGENTLÄGET — gör den enda regeln synlig
+// ═══════════════════════════════════════════════════════════════════
+let showAgents = false, sparks = false;
+const agent0 = new Float32Array(4);
+
+// Glödande agenter som additiva motes. count = hur många, pt = storlek,
+// tint = färg. Används både i agentläget och som "Gnistor" över nätet.
+function drawAgentPoints(count, pt, tint){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,cvs.width,cvs.height);
+  gl.useProgram(progDots);
+  gl.uniform2f(uDots.u_size, W, H);
+  gl.uniform3f(uDots.u_view, view.cx, view.cy, view.z);
+  gl.uniform1f(uDots.u_pt, pt);
+  gl.uniform3f(uDots.u_tint, tint[0], tint[1], tint[2]);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);              // additivt → eldflugor
+  gl.bindVertexArray(agentVAO[src]);
+  gl.drawArrays(gl.POINTS, 0, Math.min(N, count));
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+}
+function dots(){
+  drawAgentPoints(1600, Math.max(3, cvs.width*0.004), [1.0, 0.93, 0.82]);
+}
+function drawSparks(){
+  // fler, mindre motes som strömmar längs trådarna i vilken palett som helst
+  drawAgentPoints(9000, Math.max(2, cvs.width*0.0028), [0.95, 0.82, 0.6]);
+}
+
+// hjälte-agenten (index 0) läses tillbaka en gång per bild när den behövs
+function readHero(){
+  gl.bindBuffer(gl.ARRAY_BUFFER, agentBuf[src]);
+  gl.getBufferSubData(gl.ARRAY_BUFFER, 0, agent0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+}
+
+// fält (rutkoordinat) → skärm-px, genom samma vytransform som fältet
+function toPx(gx, gy){
+  return [ ((gx/W - view.cx)*view.z + 0.5) * ovl.width,
+           ((gy/H - view.cy)*view.z + 0.5) * ovl.height ];
+}
+
+// den inringade agenten med sina tre känselspröt — "roboten med kameran"
+function heroOverlay(){
+  const x = agent0[0], y = agent0[1], a = agent0[2], sd = P.sensorDist;
+  const c = Math.cos(a), s = Math.sin(a);
+  const aL = a - P.sensorAngle, aR = a + P.sensorAngle;
+  const pts = [
+    [x + c*sd,            y + s*sd],
+    [x + Math.cos(aL)*sd, y + Math.sin(aL)*sd],
+    [x + Math.cos(aR)*sd, y + Math.sin(aR)*sd]
+  ];
+  const [ox, oy] = toPx(x, y);
+  const sc = follow ? 1.7 : 1.0;             // större när man åker med
+
+  octx.lineWidth = 1.5 * sc;
+  for(let j=0;j<3;j++){
+    const [px, py] = toPx(pts[j][0], pts[j][1]);
+    octx.strokeStyle = j === 0 ? "#e0a154" : "rgba(224,161,84,.3)";
+    octx.beginPath(); octx.moveTo(ox, oy); octx.lineTo(px, py); octx.stroke();
+    octx.beginPath(); octx.arc(px, py, (j === 0 ? 6 : 4) * sc, 0, 6.2832);
+    if(j === 0){ octx.fillStyle = "#e0a154"; octx.fill(); } else octx.stroke();
+  }
+  octx.strokeStyle = "#fff"; octx.lineWidth = 2 * sc;
+  octx.beginPath(); octx.arc(ox, oy, 9 * sc, 0, 6.2832); octx.stroke();
+}
+
+// ── ÅK MED: kameran följer hjälte-agenten genom nätet ───────────────
+let follow = false;
+const heroTrail = [];
+function followCamera(){
+  const tx = agent0[0]/W, ty = agent0[1]/H;
+  let dcx = tx - view.cx; dcx -= Math.round(dcx);   // kortaste väg på torusen
+  let dcy = ty - view.cy; dcy -= Math.round(dcy);
+  view.cx += dcx * 0.12; view.cy += dcy * 0.12;
+  view.cx -= Math.floor(view.cx); view.cy -= Math.floor(view.cy);
+  heroTrail.push({ ux: tx, uy: ty });
+  if(heroTrail.length > 60) heroTrail.shift();
+}
+function heroTrailDraw(){
+  if(heroTrail.length < 2) return;
+  octx.globalCompositeOperation = "lighter";
+  octx.lineWidth = Math.max(2, ovl.width * 0.004);
+  octx.lineJoin = "round";
+  octx.beginPath();
+  for(let i=0;i<heroTrail.length;i++){
+    const p = heroTrail[i];
+    const ux = p.ux - Math.round(p.ux - view.cx);   // närmaste kopia (torus)
+    const uy = p.uy - Math.round(p.uy - view.cy);
+    const sx = ((ux - view.cx)*view.z + 0.5) * ovl.width;
+    const sy = ((uy - view.cy)*view.z + 0.5) * ovl.height;
+    if(i === 0) octx.moveTo(sx, sy); else octx.lineTo(sx, sy);
+  }
+  octx.strokeStyle = "rgba(224,161,84,0.30)";
+  octx.stroke();
+  octx.globalCompositeOperation = "source-over";
+}
+
+// ── KAMERAVY: gör Åk med till agentens kamerafeed ───────────────────
+function focusBox(cx, cy, s){
+  const h = s*0.5, t = s*0.32;
+  octx.beginPath();
+  for(const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){   // fyra hörn-tick
+    octx.moveTo(cx + sx*h, cy + sy*h - sy*t);
+    octx.lineTo(cx + sx*h, cy + sy*h);
+    octx.lineTo(cx + sx*h - sx*t, cy + sy*h);
+  }
+  octx.stroke();
+}
+function cameraReticle(){
+  const x=agent0[0], y=agent0[1], a=agent0[2], sd=P.sensorDist;
+  const aL=a-P.sensorAngle, aR=a+P.sensorAngle;
+  const [ox,oy] = toPx(x,y);
+  const F = toPx(x+Math.cos(a)*sd,  y+Math.sin(a)*sd);
+  const L = toPx(x+Math.cos(aL)*sd, y+Math.sin(aL)*sd);
+  const R = toPx(x+Math.cos(aR)*sd, y+Math.sin(aR)*sd);
+  octx.strokeStyle = "rgba(224,161,84,.30)"; octx.lineWidth = 1.5;   // sido-spröt
+  octx.beginPath(); octx.moveTo(ox,oy); octx.lineTo(L[0],L[1]);
+                    octx.moveTo(ox,oy); octx.lineTo(R[0],R[1]); octx.stroke();
+  const s = Math.max(12, ovl.width*0.05);
+  octx.strokeStyle = "#e0a154"; octx.lineWidth = 2;
+  focusBox(F[0], F[1], s);                                            // fokusruta = linsen
+  octx.beginPath();
+  octx.moveTo(F[0]-s*0.28, F[1]); octx.lineTo(F[0]+s*0.28, F[1]);
+  octx.moveTo(F[0], F[1]-s*0.28); octx.lineTo(F[0], F[1]+s*0.28); octx.stroke();
+  octx.fillStyle = "#fff"; octx.beginPath(); octx.arc(ox,oy,3,0,6.2832); octx.fill();
+}
+function cameraHUD(){
+  const W2 = ovl.width, H2 = ovl.height;
+  const g = octx.createRadialGradient(W2/2,H2/2, Math.min(W2,H2)*0.35,
+                                      W2/2,H2/2, Math.max(W2,H2)*0.62);
+  g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,0.45)");
+  octx.fillStyle = g; octx.fillRect(0,0,W2,H2);                       // vinjett
+  const m = W2*0.055, L = W2*0.05;                                    // hörn-braketter
+  octx.strokeStyle = "rgba(230,220,240,0.5)"; octx.lineWidth = 2;
+  const corner = (x,y,dx,dy) => { octx.beginPath();
+    octx.moveTo(x+dx*L,y); octx.lineTo(x,y); octx.lineTo(x,y+dy*L); octx.stroke(); };
+  corner(m,m,1,1); corner(W2-m,m,-1,1); corner(m,H2-m,1,-1); corner(W2-m,H2-m,-1,-1);
+  const fs = Math.max(12, W2*0.02);
+  octx.font = `600 ${fs}px ui-monospace,Menlo,monospace`;
+  octx.textBaseline = "middle";
+  if((frame % 40) < 26){ octx.fillStyle = "#ff5a4d";                  // blinkande REC
+    octx.beginPath(); octx.arc(m+fs*0.5, m+L+fs, fs*0.4, 0,6.2832); octx.fill(); }
+  octx.fillStyle = "rgba(230,220,240,0.85)";
+  octx.fillText("REC", m+fs*1.3, m+L+fs);
+  const deg = (((agent0[2]*180/Math.PI)%360)+360)%360 | 0;
+  octx.textAlign = "right";
+  octx.fillStyle = "rgba(230,220,240,0.7)";
+  octx.fillText("SPANAR-CAM", W2-m, m+L+fs);
+  octx.fillText(`RIKTN ${deg}°`, W2-m, m+L+fs*2.5);
+  octx.textAlign = "left";
+}
+
+// allt som ritas på 2D-överlägget, samlat på ett ställe
+function renderOverlay(){
+  if(!octx) return;
+  octx.setTransform(1,0,0,1,0,0);
+  octx.clearRect(0,0,ovl.width,ovl.height);
+  if(follow) heroTrailDraw();
+  if(gstate) drawSpores();
+  if(showAgents) heroOverlay();               // pedagogik: inringad agent
+  if(follow){ cameraReticle(); cameraHUD(); }  // åk med: kamerafeed
+  if(feedClient){
+    glowTrail.push({ x:feedClient.x, y:feedClient.y });
+    if(glowTrail.length > 16) glowTrail.shift();
+    drawGlowTrail();
+  } else glowTrail.length = 0;
+}
+
+// pulserande kometsvans längs fingrets väg — svag svans, lysande huvud
+function drawGlowTrail(){
+  const r = cvs.getBoundingClientRect();
+  const n = glowTrail.length;
+  octx.globalCompositeOperation = "lighter";
+  for(let i=0;i<n;i++){
+    const p = glowTrail[i];
+    const px = (p.x - r.left)/r.width  * ovl.width;
+    const py = (p.y - r.top )/r.height * ovl.height;
+    const age = (i+1)/n;                       // 1 = huvudet (fingret)
+    const head = i === n-1;
+    const pulse = 0.85 + 0.15*Math.sin(frame*0.25);
+    const rad = ovl.width * (0.028 + 0.085*age) * (head ? pulse : 1);
+    const a = 0.08 + 0.44*age*age;
+    const g = octx.createRadialGradient(px, py, 0, px, py, rad);
+    g.addColorStop(0,   `rgba(255,224,180,${a})`);
+    g.addColorStop(0.4, `rgba(224,140,70,${a*0.4})`);
+    g.addColorStop(1,   "rgba(224,161,84,0)");
+    octx.fillStyle = g;
+    octx.beginPath(); octx.arc(px, py, rad, 0, 6.2832); octx.fill();
+  }
+  octx.globalCompositeOperation = "source-over";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SPEL — SPORJAKT
+//  Sporer dyker upp i mörka luckor. Väx en ljus tråd fram innan tiden
+//  rinner ut. Fältet mäts på GPU:n vid varje spor för att se om en tråd
+//  nått fram.
+// ═══════════════════════════════════════════════════════════════════
+let gstate = 0;                 // 0 = av, 1 = spelar, 2 = slut
+let score = 0, combo = 0, best = 0, lives = 3, level = 1, collects = 0;
+let curLife = 10, activeCount = 2, hurt = 0, probeTick = 0;
+const MAXSPORES = 5, ARM = 0.18, REACH = 0.60;
+const START_LIVES = 3;
+const spores = new Array(MAXSPORES).fill(null);
+const pops = [];
+const glivesEl = document.getElementById("glives");
+const gscoreEl = document.getElementById("gscore");
+const ghintEl  = document.getElementById("ghint");
+try { best = (+localStorage.getItem("tendril_best")) || 0; } catch(e){}
+
+function rollSpore(){
+  return { ux: 0.08 + Math.random()*0.84, uy: 0.08 + Math.random()*0.84,
+           pending: true, armed: false, life: curLife, maxlife: curLife };
+}
+function hearts(){ return "♥".repeat(Math.max(0,lives)) + "♡".repeat(Math.max(0, START_LIVES-lives)); }
+function gameHud(){
+  glivesEl.textContent = hearts();
+  gscoreEl.textContent = combo > 1 ? `${score}   ·   ${combo}×` : `${score}`;
+  ghintEl.textContent  = `NIVÅ ${level}`;
+}
+function refreshPlay(){
+  const b = document.getElementById("play");
+  b.textContent = gstate === 1 ? "Sluta" : "Spela";
+  b.classList.toggle("on", gstate === 1);
+}
+function startGame(){
+  gstate = 1; score = 0; combo = 0; lives = START_LIVES; level = 1;
+  collects = 0; curLife = 10; activeCount = 2; hurt = 0;
+  showAgents = false; follow = false;
+  document.getElementById("agents").classList.remove("on");
+  document.getElementById("ride").classList.remove("on");
+  document.body.classList.remove("teaching", "gameover");
+  document.body.classList.add("gaming");
+  resetView();
+  for(let i=0;i<MAXSPORES;i++) spores[i] = i < activeCount ? rollSpore() : null;
+  pops.length = 0; gameHud(); refreshPlay();
+}
+function stopGame(){
+  gstate = 0;
+  for(let i=0;i<MAXSPORES;i++) spores[i] = null;
+  pops.length = 0;
+  document.body.classList.remove("gaming", "gameover");
+  refreshPlay();
+}
+function endGame(){
+  gstate = 2;
+  best = Math.max(best, score);
+  try { localStorage.setItem("tendril_best", best); } catch(e){}
+  document.getElementById("goScore").textContent = "Poäng " + score;
+  document.getElementById("goBest").textContent  = "Bästa " + best;
+  document.body.classList.add("gameover");
+  refreshPlay();
+}
+function levelUp(){
+  level += 1;
+  curLife = Math.max(4, 10 - (level-1)*0.7);          // kortare tid per nivå
+  const na = Math.min(MAXSPORES, 2 + Math.floor(level/2));
+  for(let i=activeCount;i<na;i++) if(!spores[i]) spores[i] = rollSpore();
+  activeCount = na;
+  pops.push({ ux:0.5, uy:0.42, age:0, txt:`Nivå ${level}`, big:true });
+}
+function loseLife(){
+  lives -= 1; combo = 0; hurt = 1;
+  if(lives <= 0) endGame();
+  gameHud();
+}
+function depositBlob(gx, gy, r, amp){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[cur]);
+  gl.viewport(0,0,W,H);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.useProgram(progFeed);
+  gl.uniform2f(uFeed.u_pos, gx, gy);
+  gl.uniform2f(uFeed.u_size, W, H);
+  gl.uniform1f(uFeed.u_r, r);
+  gl.uniform1f(uFeed.u_amp, amp);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.bindVertexArray(emptyVAO);
+  gl.drawArrays(gl.POINTS, 0, 1);
+  gl.bindVertexArray(null);
+  gl.disable(gl.BLEND);
+}
+function collect(i){
+  const s = spores[i];
+  combo += 1; collects += 1;
+  const gain = 100 * combo;
+  score += gain;
+  pops.push({ ux:s.ux, uy:s.uy, age:0 });
+  pops.push({ ux:s.ux, uy:s.uy, age:0, txt:`+${gain}` });
+  depositBlob(s.ux*W, s.uy*H, Math.max(16, Math.min(W,H)*0.04), 2.4); // belöningsblomma
+  spores[i] = rollSpore();
+  if(collects % 5 === 0) levelUp();
+  gameHud();
+}
+function gameProbe(){
+  const arr = new Float32Array(16);
+  for(let i=0;i<MAXSPORES;i++){ const s=spores[i]; arr[i*2]=s?s.ux:-1; arr[i*2+1]=s?s.uy:-1; }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, probeFBO);
+  gl.viewport(0,0,8,1);
+  gl.useProgram(progProbe);
+  gl.uniform2fv(uProbeSpore, arr);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, trailTex[cur]);
+  gl.uniform1i(uProbe.u_trail, 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, levelTex[lcur]);
+  gl.uniform1i(uProbe.u_level, 1);
+  gl.disable(gl.BLEND);
+  gl.bindVertexArray(emptyVAO);
+  gl.drawArrays(gl.POINTS, 0, MAXSPORES);
+  gl.bindVertexArray(null);
+  gl.readPixels(0,0,8,1, gl.RGBA, gl.UNSIGNED_BYTE, probeBuf);
+  for(let i=0;i<MAXSPORES;i++){
+    const s = spores[i]; if(!s) continue;
+    const tone = probeBuf[i*4] / 255;
+    if(s.pending){
+      if(tone < ARM){ s.pending = false; s.armed = true; s.life = curLife; s.maxlife = curLife; }
+      else { s.ux = 0.08 + Math.random()*0.84; s.uy = 0.08 + Math.random()*0.84; }  // ligg inte på en åder
+    } else if(s.armed && tone >= REACH){
+      collect(i);
+    }
+  }
+}
+function agePops(dt){
+  for(let i=pops.length-1;i>=0;i--){
+    pops[i].age += dt;
+    const life = pops[i].txt ? 1.0 : 0.6;
+    if(pops[i].age > life) pops.splice(i,1);
+  }
+}
+function updateGame(dt){
+  if(hurt > 0) hurt = Math.max(0, hurt - dt*2);
+  agePops(dt);
+  if(gstate !== 1) return;
+  for(let i=0;i<MAXSPORES;i++){
+    const s = spores[i]; if(!s || !s.armed) continue;
+    s.life -= dt;
+    if(s.life <= 0){ spores[i] = rollSpore(); loseLife(); }
+  }
+}
+function drawSpores(){
+  for(let i=0;i<MAXSPORES;i++){
+    const s = spores[i]; if(!s || !s.armed) continue;
+    const [px, py] = toPx(s.ux*W, s.uy*H);
+    const pulse = 0.7 + 0.3*Math.sin(frame*0.2);
+    const rad = ovl.width * 0.02;
+    octx.globalCompositeOperation = "lighter";
+    const g = octx.createRadialGradient(px,py,0, px,py,rad*2.4);
+    g.addColorStop(0,   `rgba(255,235,200,${0.55*pulse})`);
+    g.addColorStop(0.5, "rgba(224,150,80,0.16)");
+    g.addColorStop(1,   "rgba(224,161,84,0)");
+    octx.fillStyle = g;
+    octx.beginPath(); octx.arc(px,py,rad*2.4,0,6.2832); octx.fill();
+    octx.globalCompositeOperation = "source-over";
+    octx.strokeStyle = "rgba(255,240,220,0.9)"; octx.lineWidth = 2;
+    octx.beginPath(); octx.arc(px,py,rad,0,6.2832); octx.stroke();
+    const frac = Math.max(0, s.life/s.maxlife);   // nedräkningsring
+    octx.strokeStyle = frac < 0.3 ? "#ff5a4d" : "#e0a154"; octx.lineWidth = 3;
+    octx.beginPath(); octx.arc(px,py,rad+5, -Math.PI/2, -Math.PI/2 + frac*6.2832); octx.stroke();
+  }
+  // puffar + poängtext
+  for(const p of pops){
+    const [px,py] = toPx(p.ux*W, p.uy*H);
+    if(p.txt){
+      const t = p.age / (p.big ? 1.0 : 1.0);
+      const fs = (p.big ? ovl.width*0.055 : ovl.width*0.03);
+      octx.font = `700 ${fs}px ui-sans-serif,system-ui,sans-serif`;
+      octx.textAlign = "center"; octx.textBaseline = "middle";
+      octx.fillStyle = `rgba(255,224,180,${(1-t)*(p.big?1:0.95)})`;
+      octx.fillText(p.txt, px, py - t*ovl.width*0.05);
+      octx.textAlign = "left";
+    } else {
+      octx.globalCompositeOperation = "lighter";
+      const t = p.age/0.6, rad = ovl.width*0.02 + ovl.width*0.10*t;
+      octx.strokeStyle = `rgba(255,230,190,${(1-t)*0.7})`;
+      octx.lineWidth = 3*(1-t)+1;
+      octx.beginPath(); octx.arc(px,py,rad,0,6.2832); octx.stroke();
+      octx.globalCompositeOperation = "source-over";
+    }
+  }
+  if(hurt > 0){                       // röd blixt när man tappar ett liv
+    const g = octx.createRadialGradient(ovl.width/2,ovl.height/2, Math.min(ovl.width,ovl.height)*0.3,
+                                        ovl.width/2,ovl.height/2, Math.max(ovl.width,ovl.height)*0.62);
+    g.addColorStop(0,"rgba(255,40,40,0)"); g.addColorStop(1,`rgba(255,40,40,${0.5*hurt})`);
+    octx.fillStyle = g; octx.fillRect(0,0,ovl.width,ovl.height);
+  }
+}
+
+// liten dev-krok (bara med #debug i adressen) för test/felsökning
+if(location.hash === "#debug"){
+  window.__t = { spores, get score(){return score}, get lives(){return lives},
+                 get state(){return gstate}, get level(){return level},
+                 hurt:()=>loseLife(), lvlup:()=>levelUp() };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SLINGAN
+// ═══════════════════════════════════════════════════════════════════
+let last = 0, acc = 0, frames = 0, tick = 0;
+const hud = document.getElementById("hud");
+
+function loop(now){
+  requestAnimationFrame(loop);
+  // I agentläget kör simuleringen var tredje bild, så ögat hinner följa
+  // en enskild agent istället för bara se resultatet.
+  if(!showAgents || (tick++ % 3) === 0){
+    feed(); emit(); step(); diffuse(); frame++;
+  }
+  if(showAgents || follow) readHero();
+  if(follow) followCamera();               // kameran centrerar hjälte-agenten
+  exposure();
+  if(gstate){
+    updateGame(Math.min(0.05, (now - last) / 1000));
+    if(gstate === 1 && (probeTick++ % 3) === 0) gameProbe();   // mät sporer (läser tillbaka från GPU)
+  }
+  display();
+  if(showAgents) dots();                    // pedagogiskt: alla agenter som prickar
+  else if(sparks || follow) drawSparks();   // gnistor / medresenärer
+  renderOverlay();                          // 2D-lager: hjälte, spår, kometsvans
+
+  frames++; acc += now - last; last = now;
+  if(acc > 500){
+    hud.textContent = `${(N/1000)|0}k · ${W}×${H} · ${Math.round(frames*1000/acc)} fps`;
+    acc = 0; frames = 0;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  REGLAGE
+// ═══════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const sZoom = $("sZoom"), sDist = $("sDist"), sTurn = $("sTurn"),
+      sDecay = $("sDecay"), sCount = $("sCount");
+
+function syncUI(){
+  sZoom.value  = Math.round(SCALE * 10);
+  sDist.value  = P.sensorDist;
+  sTurn.value  = Math.round(P.turn * 180 / Math.PI);
+  sDecay.value = Math.round(P.decay * 100);
+  sCount.value = P.count;
+  sZoom.nextElementSibling.value  = (SCALE).toFixed(1) + "×";
+  sDist.nextElementSibling.value  = sDist.value;
+  sTurn.nextElementSibling.value  = sTurn.value + "°";
+  sDecay.nextElementSibling.value = sDecay.value + "%";
+  sCount.nextElementSibling.value = sCount.value + "k";
+}
+
+sZoom.oninput  = e => { setZoom(+e.target.value / 10); syncUI(); };
+sDist.oninput  = e => { P.sensorDist = +e.target.value; syncUI(); };
+sTurn.oninput  = e => { P.turn = +e.target.value * Math.PI/180; syncUI(); };
+sDecay.oninput = e => { P.decay = +e.target.value/100; syncUI(); };
+sCount.oninput = e => { P.count = +e.target.value; syncUI(); seed(); };
+
+// Ett mobilrutnät har färre rutor än en skärm. Samma antal agenter där
+// blir en soppa istället för ett nät, så förinställningarna skalas ner.
+const DENS = MOBILE ? 0.55 : 1;
+function applyPreset(i){
+  Object.assign(P, PRESETS[i]);
+  P.count = Math.max(5, Math.round(P.count * DENS / 5) * 5);
+  syncUI(); seed();
+}
+document.querySelectorAll(".presets button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll(".presets button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    applyPreset(+b.dataset.p);
+  };
+});
+
+$("play").onclick = () => { if(gstate === 1) stopGame(); else startGame(); };
+$("again").onclick = () => startGame();
+
+$("reset").onclick = seed;
+
+$("palette").onclick = e => {
+  palIdx = (palIdx + 1) % PALETTES.length;
+  buildLUT(PALETTES[palIdx].stops);
+  e.target.textContent = "Färg: " + PALETTES[palIdx].name;
+};
+
+$("sparks").onclick = e => {
+  sparks = !sparks;
+  e.target.classList.toggle("on", sparks);
+};
+
+$("ride").onclick = e => {
+  follow = !follow;
+  e.target.classList.toggle("on", follow);
+  if(follow){
+    showAgents = false;                     // åk med och pedagogik är olika lägen
+    $("agents").classList.remove("on");
+    document.body.classList.remove("teaching");
+    readHero();
+    view.cx = agent0[0]/W; view.cy = agent0[1]/H;   // hoppa fram till agenten
+    view.z = Math.max(view.z, 5);
+    heroTrail.length = 0;
+  } else {
+    clampCenter();                          // tillbaka innanför världen
+  }
+};
+
+$("agents").onclick = e => {
+  showAgents = !showAgents;
+  if(showAgents){ follow = false; $("ride").classList.remove("on"); }
+  e.target.classList.toggle("on", showAgents);
+  document.body.classList.toggle("teaching", showAgents);
+};
+
+const panel = $("panel"), toggle = $("toggle");
+toggle.onclick = () => {
+  const open = panel.classList.toggle("open");
+  toggle.style.transform = open ? `translateY(${-(panel.offsetHeight + 14)}px)` : "";
+  document.body.classList.add("touched");
+};
+
+addEventListener("resize", () => {
+  clearTimeout(allocate._t);
+  allocate._t = setTimeout(() => { allocate(); seed(); }, 180);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+P.count = Math.max(5, Math.round(P.count * DENS / 5) * 5);
+allocate();
+seed();
+syncUI();
+requestAnimationFrame(t => { last = t; loop(t); });
+
+})();
+</script>
