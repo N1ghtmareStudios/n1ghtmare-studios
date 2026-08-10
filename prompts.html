@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Prompt Forge — N1ghtmare internal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%230a0d14'/><text x='32' y='45' font-family='Georgia,serif' font-size='32' font-weight='bold' text-anchor='middle' fill='%23c8922f'>⚒</text></svg>">
+<style>
+:root{
+  --ground:#0a0d14; --raised:#121722; --rule:#232a39; --ink:#e7e4db;
+  --ink-soft:#8b93a5; --gold:#c8922f; --gold-ink:#150f04;
+  --display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font:16px/1.6 var(--body);
+     -webkit-font-smoothing:antialiased; padding:24px 16px 60px}
+.wrap{max-width:680px; margin:0 auto}
+h1{font:400 26px/1.1 var(--display); letter-spacing:.12em; text-transform:uppercase; margin:0 0 4px}
+h1 b{color:var(--gold); font-weight:400}
+.sub{color:var(--ink-soft); font-size:13px; margin:0 0 28px}
+label{display:block; font:500 11px/1 var(--body); letter-spacing:.18em; text-transform:uppercase;
+      color:var(--ink-soft); margin:18px 0 7px}
+select,textarea{width:100%; background:var(--raised); color:var(--ink); border:1px solid var(--rule);
+  border-radius:8px; padding:12px 14px; font:15px/1.5 var(--body)}
+select:focus,textarea:focus{outline:2px solid var(--gold); outline-offset:1px}
+textarea{min-height:88px; resize:vertical}
+.row{display:flex; gap:10px}
+.row>div{flex:1}
+#out{background:var(--raised); border:1px solid var(--rule); border-radius:8px; padding:14px;
+     font:14px/1.6 ui-monospace,Consolas,monospace; color:var(--ink); min-height:80px;
+     white-space:pre-wrap; word-break:break-word; margin-top:8px}
+#copy{display:block; width:100%; margin-top:12px; background:var(--gold); color:var(--gold-ink);
+  border:none; border-radius:8px; padding:15px; font:700 15px var(--body); letter-spacing:.05em;
+  cursor:pointer}
+#copy:active{filter:brightness(1.15)}
+#copy.done{background:#3f7d3f; color:#eaffea}
+.hint{color:var(--ink-soft); font-size:12.5px; margin-top:16px; line-height:1.6}
+.hint code{color:var(--gold); font-family:ui-monospace,monospace; font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Prompt <b>Forge</b></h1>
+  <p class="sub">Internal tool — assembles Warpack art prompts from the studio templates. No AI, no waiting: the templates ARE the knowledge.</p>
+
+  <div class="row">
+    <div>
+      <label for="type">What are you making?</label>
+      <select id="type">
+        <option value="unit">Unit sprite (PixelLab)</option>
+        <option value="icon">Item / boon icon (Midjourney)</option>
+        <option value="portrait">Commander portrait (Midjourney)</option>
+        <option value="arena">Arena (Midjourney)</option>
+        <option value="free">Free Midjourney (pick ratio)</option>
+      </select>
+    </div>
+    <div>
+      <label for="faction">Faction</label>
+      <select id="faction">
+        <option value="Highcrest">Highcrest</option>
+        <option value="Bone Legion">Bone Legion</option>
+        <option value="Bloodhorde">Bloodhorde</option>
+        <option value="Bloodhorde (dark elf)">Bloodhorde — dark elf</option>
+        <option value="Elderwood">Elderwood</option>
+        <option value="Ironclaw">Ironclaw</option>
+        <option value="">None / neutral</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row" id="arRow" style="display:none">
+    <div>
+      <label for="ar">Aspect ratio</label>
+      <select id="ar">
+        <option>1:1</option><option>2:1</option><option>2:3</option>
+        <option>16:9</option><option>3:1</option>
+      </select>
+    </div>
+    <div>
+      <label for="niji">Style flag</label>
+      <select id="niji"><option value="1">--niji</option><option value="">none</option></select>
+    </div>
+  </div>
+
+  <label for="desc">Describe it — one sentence, the fun part</label>
+  <textarea id="desc" placeholder="A hulking orc with a scrap hand-cannon hammered from looted armor plate, braced wide against the recoil..."></textarea>
+
+  <label>Assembled prompt</label>
+  <div id="out">—</div>
+  <button id="copy">COPY PROMPT</button>
+
+  <p class="hint">
+    Unit sprites: paste into PixelLab, canvas <code>252×252</code>, transparent background,
+    8-direction idle (South frame minimum — the game mirrors the rest).<br>
+    Icons/portraits/arenas: paste into Midjourney. Templates live in
+    <code>Warpack/docs/</code> — if a template changes there, update this page.
+  </p>
+</div>
+
+<script>
+const PAL = {
+  "Highcrest":"polished steel and white with royal-blue and gold heraldry and a golden sunburst crest",
+  "Bone Legion":"bleached bone, grave-black and corroded iron with a sickly green necrotic glow",
+  "Bloodhorde":"green-and-grey monstrous skin, crude rusted iron and hide with blood-red war paint and bone trophies",
+  "Bloodhorde (dark elf)":"charcoal-black leather and ashen skin with violet accents",
+  "Elderwood":"moon-silver and teal, living wood and leaf-green",
+  "Ironclaw":"stone-grey and bronze, heavy iron plate and glowing runework",
+  "":""
+};
+const $=id=>document.getElementById(id);
+const type=$("type"), faction=$("faction"), desc=$("desc"), out=$("out"),
+      arRow=$("arRow"), ar=$("ar"), niji=$("niji"), copy=$("copy");
+
+function factionName(f){ return f==="Bloodhorde (dark elf)" ? "Bloodhorde" : f; }
+
+function build(){
+  const t=type.value, f=faction.value, pal=PAL[f]||"", s=desc.value.trim().replace(/\.+$/,"");
+  arRow.style.display = t==="free" ? "flex" : "none";
+  if(!s){ out.textContent="—"; return; }
+  let p="";
+  if(t==="unit"){
+    p = s + ". Clean fantasy pixel art, upright full-body character with a readable silhouette, "
+      + "3/4 top-down view, plain background"
+      + (pal ? "; cohesive " + factionName(f) + " palette of " + pal : "") + ".";
+  } else if(t==="icon"){
+    p = s + (pal ? ", " + pal : "")
+      + ". Painterly fantasy game icon, centered emblem composition on a plain dark background, "
+      + "strong readable silhouette, no text --ar 1:1 --niji";
+  } else if(t==="portrait"){
+    p = "Half-body portrait of " + s + (pal ? ", " + pal : "")
+      + ", fantasy game art style, dramatic cinematic light --ar 1:1 --niji";
+  } else if(t==="arena"){
+    p = "top-down view of " + s
+      + ", an open clear flat centre for combat, no characters, bird's-eye 3/4 perspective, "
+      + "dark fantasy" + (pal ? ", " + pal : "") + ", atmospheric light --ar 16:9 --niji";
+  } else {
+    p = s + " --ar " + ar.value + (niji.value ? " --niji" : "");
+  }
+  out.textContent = p;
+}
+[type,faction,desc,ar,niji].forEach(el=>el.addEventListener("input",build));
+copy.onclick = async ()=>{
+  if(out.textContent==="—") return;
+  try{ await navigator.clipboard.writeText(out.textContent); }
+  catch(e){ const r=document.createRange(); r.selectNodeContents(out);
+    const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); document.execCommand("copy"); }
+  copy.textContent="COPIED ✓"; copy.classList.add("done");
+  setTimeout(()=>{ copy.textContent="COPY PROMPT"; copy.classList.remove("done"); },1400);
+};
+build();
+</script>
+</body>
+</html>
