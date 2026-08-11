@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Prompt Forge — N1ghtmare internal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%230a0d14'/><text x='32' y='45' font-family='Georgia,serif' font-size='32' font-weight='bold' text-anchor='middle' fill='%23c8922f'>⚒</text></svg>">
+<style>
+:root{
+  --ground:#0a0d14; --raised:#121722; --rule:#232a39; --ink:#e7e4db;
+  --ink-soft:#8b93a5; --gold:#c8922f; --gold-ink:#150f04;
+  --display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font:16px/1.6 var(--body);
+     -webkit-font-smoothing:antialiased; padding:24px 16px 80px}
+.wrap{max-width:720px; margin:0 auto}
+h1{font:400 26px/1.1 var(--display); letter-spacing:.12em; text-transform:uppercase; margin:0 0 4px}
+h1 b{color:var(--gold); font-weight:400}
+.sub{color:var(--ink-soft); font-size:13px; margin:0 0 26px}
+h2{font:400 17px/1.2 var(--display); letter-spacing:.14em; text-transform:uppercase;
+   color:var(--gold); margin:40px 0 4px; display:flex; align-items:center; gap:12px}
+h2::after{content:""; flex:1; height:1px; background:var(--rule)}
+.h2sub{color:var(--ink-soft); font-size:12.5px; margin:0 0 14px}
+label{display:block; font:500 11px/1 var(--body); letter-spacing:.18em; text-transform:uppercase;
+      color:var(--ink-soft); margin:16px 0 7px}
+select,textarea,input{width:100%; background:var(--raised); color:var(--ink); border:1px solid var(--rule);
+  border-radius:8px; padding:12px 14px; font:15px/1.5 var(--body)}
+select:focus,textarea:focus,input:focus{outline:2px solid var(--gold); outline-offset:1px}
+textarea{min-height:88px; resize:vertical}
+#order{min-height:150px; font:13.5px/1.55 ui-monospace,Consolas,monospace}
+.row{display:flex; gap:10px}
+.row>div{flex:1}
+button.primary{display:block; width:100%; margin-top:14px; background:var(--gold); color:var(--gold-ink);
+  border:none; border-radius:8px; padding:15px; font:700 15px var(--body); letter-spacing:.05em; cursor:pointer}
+button.primary:disabled{opacity:.5; cursor:wait}
+button.primary:active{filter:brightness(1.15)}
+.item{background:var(--raised); border:1px solid var(--rule); border-radius:8px; padding:14px; margin-top:12px}
+.item h3{font:600 14px var(--body); margin:0 0 8px; color:var(--gold)}
+.item pre{margin:0 0 10px; white-space:pre-wrap; word-break:break-word;
+  font:13px/1.6 ui-monospace,Consolas,monospace; color:var(--ink)}
+.item button, #copyAll{background:none; border:1px solid var(--rule); color:var(--gold); border-radius:6px;
+  padding:8px 14px; font:600 12px var(--body); letter-spacing:.06em; cursor:pointer}
+.item button:hover, #copyAll:hover{border-color:var(--gold)}
+.item button.done{background:#3f7d3f; color:#eaffea; border-color:#3f7d3f}
+#copyAll{display:none; margin-top:14px; width:100%; padding:12px}
+#status{margin-top:14px; font-size:13.5px; color:var(--ink-soft); min-height:20px}
+#status.err{color:#e77}
+#out{margin-top:4px}
+.hint{color:var(--ink-soft); font-size:12.5px; margin-top:14px; line-height:1.6}
+.hint code{color:var(--gold); font-family:ui-monospace,monospace; font-size:12px}
+.hint a{color:var(--gold)}
+details{margin-top:10px}
+summary{cursor:pointer; color:var(--ink-soft); font-size:13px}
+#manual{margin-top:8px}
+#mout{background:var(--raised); border:1px solid var(--rule); border-radius:8px; padding:14px;
+  font:13px/1.6 ui-monospace,Consolas,monospace; min-height:60px; white-space:pre-wrap;
+  word-break:break-word; margin-top:8px}
+#mcopy{display:block; width:100%; margin-top:10px; background:none; border:1px solid var(--rule);
+  color:var(--gold); border-radius:8px; padding:12px; font:600 13px var(--body); cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Prompt <b>Forge</b></h1>
+  <p class="sub">Internal tool — paste an order, get finished Warpack art prompts in the house style.</p>
+
+  <h2>AI Forge</h2>
+  <p class="h2sub">Paste a raw list ("Items missing art: - The Final Word (finalword) — faction: shared, rarity: Epic...") and get one polished prompt per item.</p>
+
+  <div class="row">
+    <div>
+      <label for="type">What kind of art?</label>
+      <select id="type">
+        <option value="icon">Item / boon icons (Midjourney)</option>
+        <option value="unit">Unit sprites (PixelLab)</option>
+        <option value="portrait">Commander portraits (Midjourney)</option>
+        <option value="arena">Arenas (Midjourney)</option>
+      </select>
+    </div>
+    <div>
+      <label for="model">Model</label>
+      <select id="model">
+        <option value="claude-opus-5">Claude Opus 5 — best</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5 — fast</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5 — cheapest</option>
+      </select>
+    </div>
+  </div>
+
+  <label for="order">The order — paste your list</label>
+  <textarea id="order" placeholder="Items missing art (43 of 203):&#10;&#10;- The Final Word (finalword) — faction: shared, rarity: Epic, tags: focus/arcane&#10;- Bloodchant Fetish (bloodchant) — faction: bloodhorde, rarity: Rare, tags: arcane/beast&#10;..."></textarea>
+
+  <label for="key">Anthropic API key (stored only in this browser)</label>
+  <input id="key" type="password" placeholder="sk-ant-...">
+
+  <button class="primary" id="go">FORGE PROMPTS</button>
+  <div id="status"></div>
+  <div id="out"></div>
+  <button id="copyAll">COPY ALL PROMPTS</button>
+
+  <p class="hint">
+    Key comes from <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>
+    (API billing is separate from the Claude apps — $5 minimum credit). A 40-item batch costs
+    a few cents on Opus, fractions of a cent on Haiku. The key is saved in
+    <code>localStorage</code> on this device only and is sent only to <code>api.anthropic.com</code>.
+  </p>
+
+  <h2>Manual assembler</h2>
+  <p class="h2sub">No AI, no key — wraps your own sentence in the right template. Works offline.</p>
+  <details id="manual">
+    <summary>Open the manual tool</summary>
+    <div class="row" style="margin-top:10px">
+      <div>
+        <label for="mtype">Type</label>
+        <select id="mtype">
+          <option value="unit">Unit sprite (PixelLab)</option>
+          <option value="icon">Item / boon icon</option>
+          <option value="portrait">Commander portrait</option>
+          <option value="arena">Arena</option>
+          <option value="free">Free Midjourney</option>
+        </select>
+      </div>
+      <div>
+        <label for="mfaction">Faction</label>
+        <select id="mfaction">
+          <option>Highcrest</option><option>Bone Legion</option><option>Bloodhorde</option>
+          <option>Bloodhorde (dark elf)</option><option>Elderwood</option><option>Ironclaw</option>
+          <option value="">None</option>
+        </select>
+      </div>
+    </div>
+    <label for="mdesc">Describe it — one sentence</label>
+    <textarea id="mdesc"></textarea>
+    <div id="mout">—</div>
+    <button id="mcopy">COPY</button>
+  </details>
+</div>
+
+<script>
+/* ── shared style data (from Warpack/docs — update here if the docs change) ── */
+const PAL = {
+  "Highcrest":"polished steel and white with royal-blue and gold heraldry and a golden sunburst crest",
+  "Bone Legion":"bleached bone, grave-black and corroded iron with a sickly green necrotic glow",
+  "Bloodhorde":"green-and-grey monstrous skin, crude rusted iron and hide with blood-red war paint and bone trophies",
+  "Bloodhorde (dark elf)":"charcoal-black leather and ashen skin with violet accents",
+  "Elderwood":"moon-silver and teal, living wood and leaf-green",
+  "Ironclaw":"stone-grey and bronze, heavy iron plate and glowing runework",
+  "":""
+};
+
+const SYSTEM = [
+"You are the art-prompt writer for N1ghtmare Studios' game WARPACK, a dark-fantasy auto-battler.",
+"You receive raw item/unit lists and return one finished, professional image-generation prompt per entry.",
+"",
+"HOUSE STYLE (never violate):",
+"- One clear subject per image. Strong readable silhouette. Grounded dark fantasy - real materials (iron, bone, hide, wood, wax, stone), not glowy abstractions. Faction identity must read instantly. Avoid clutter and small debris.",
+"- Rarity scaling: Common = plain, humble, workmanlike materials. Rare = quality craftsmanship plus ONE magical accent. Epic = potent arcane presence, richer materials. Legendary = imposing and singular - feels ancient and powerful WITHOUT generic MMO glow, no rainbow particle soup.",
+"- Use each entry's tags (blade/armor/focus/beast/arcane/bone/iron/raider/brute) to choose the object's nature.",
+"",
+"FACTION PALETTES (weave the faction's palette into the description):",
+"- highcrest: " + PAL["Highcrest"],
+"- bonelegion: " + PAL["Bone Legion"],
+"- bloodhorde: " + PAL["Bloodhorde"] + " (dark-elf items instead: " + PAL["Bloodhorde (dark elf)"] + ")",
+"- elves/elderwood: " + PAL["Elderwood"],
+"- dwarves/ironclaw: " + PAL["Ironclaw"],
+"- shared/neutral: pick materials that fit the item's tags; muted, faction-agnostic.",
+"",
+"FORMATS - the user names the batch type; every prompt in the batch uses that format:",
+"ICON (Midjourney): <lowercase item name>, <vivid object description with materials, faction palette woven in, rarity-appropriate presence>. Painterly fantasy game icon, centered emblem composition on a plain dark background, strong readable silhouette, no text --ar 1:1 --niji",
+"UNIT (PixelLab): <One or two sentences: who they are, pose, gear, silhouette notes>. Clean fantasy pixel art, upright full-body character with a readable silhouette, 3/4 top-down view, plain background; cohesive <Faction> palette of <palette>.",
+"PORTRAIT (Midjourney): Half-body portrait of <character description with personality, gear, setting behind them>, <faction palette>, fantasy game art style, dramatic cinematic light --ar 1:1 --niji",
+"ARENA (Midjourney): top-down view of <arena description>, an open clear flat centre for combat, no characters, bird's-eye 3/4 perspective, dark fantasy, <palette words>, atmospheric light --ar 16:9 --niji",
+"",
+"GOLD-STANDARD EXAMPLES of the voice:",
+"Example icon (Epic, highcrest): a golden sun rising twice over a kneeling knight standing back up, twin sunbursts of holy light, polished steel and white with royal-blue and gold heraldry. Painterly fantasy game icon, centered emblem composition on a plain dark background, strong readable silhouette, no text --ar 1:1 --niji",
+"Example icon (Rare, bloodhorde): bloodchant fetish, savage orcish ritual charm made from a cracked animal jawbone bound around a dark red heartwood core with crude iron wire, faint blood-red glow seeping between the teeth. Painterly fantasy game icon, centered emblem composition on a plain dark background, strong readable silhouette, no text --ar 1:1 --niji",
+"Example unit (bloodhorde): A hulking orc with a scrap hand-cannon hammered from looted armor plate loaded with nails and gravel, braced wide against the recoil, the piece held with BOTH hands in front of the torso for clean 8-direction mirroring; gunsmoke and soot, not dwarven precision. Clean fantasy pixel art, upright full-body character with a readable silhouette, 3/4 top-down view, plain background; cohesive Bloodhorde palette of green-and-grey monstrous skin, crude rusted iron and hide with blood-red war paint and bone trophies.",
+"",
+"OUTPUT PROTOCOL (strict):",
+"For each entry, output exactly two lines then a blank line:",
+"@@ITEM: <Display Name> (<id>)",
+"<the complete prompt on a single line>",
+"No headers, no commentary, no markdown, no numbering. Every entry in the input gets exactly one prompt."
+].join("\n");
+
+/* ── AI forge ── */
+const $=id=>document.getElementById(id);
+const keyEl=$("key"), go=$("go"), status_=$("status"), out=$("out"), copyAll=$("copyAll");
+keyEl.value = localStorage.getItem("pf_api_key") || "";
+keyEl.addEventListener("input", ()=>localStorage.setItem("pf_api_key", keyEl.value.trim()));
+
+async function copyText(t, btn){
+  try{ await navigator.clipboard.writeText(t); }catch(e){}
+  if(btn){ const old=btn.textContent; btn.textContent="COPIED ✓"; btn.classList.add("done");
+    setTimeout(()=>{ btn.textContent=old; btn.classList.remove("done"); },1200); }
+}
+
+go.onclick = async ()=>{
+  const key=keyEl.value.trim(), order=$("order").value.trim();
+  if(!key){ status_.textContent="Paste your API key first (console.anthropic.com)."; status_.className="err"; return; }
+  if(!order){ status_.textContent="Paste an order list first."; status_.className="err"; return; }
+  go.disabled=true; out.innerHTML=""; copyAll.style.display="none";
+  status_.className=""; status_.textContent="Forging... (Opus thinks first - give it a minute on big batches)";
+  try{
+    const res = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{
+        "content-type":"application/json",
+        "x-api-key":key,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({
+        model:$("model").value,
+        max_tokens:16000,
+        system:SYSTEM,
+        messages:[{role:"user",content:"Batch type: "+$("type").value.toUpperCase()+"\n\nOrder:\n"+order}]
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      const msg = data && data.error ? data.error.message : ("HTTP "+res.status);
+      throw new Error(res.status===401 ? "Invalid API key." : msg);
+    }
+    if(data.stop_reason==="refusal") throw new Error("The model declined this request.");
+    let text="";
+    for(const block of (data.content||[])) if(block.type==="text") text+=block.text;
+    const parts = text.split(/^@@ITEM:\s*/m).filter(s=>s.trim());
+    if(!parts.length) throw new Error("No prompts found in the response - try again.");
+    const prompts=[];
+    for(const part of parts){
+      const nl = part.indexOf("\n");
+      const name = (nl>0 ? part.slice(0,nl) : part).trim();
+      const prompt = (nl>0 ? part.slice(nl+1) : "").trim();
+      if(!prompt) continue;
+      prompts.push(prompt);
+      const div=document.createElement("div"); div.className="item";
+      const h=document.createElement("h3"); h.textContent=name;
+      const pre=document.createElement("pre"); pre.textContent=prompt;
+      const b=document.createElement("button"); b.textContent="COPY";
+      b.onclick=()=>copyText(prompt,b);
+      div.append(h,pre,b); out.append(div);
+    }
+    status_.textContent = prompts.length+" prompts forged. Tokens: "+
+      (data.usage ? (data.usage.input_tokens+" in / "+data.usage.output_tokens+" out") : "?");
+    if(prompts.length>1){
+      copyAll.style.display="block";
+      copyAll.onclick=()=>copyText(prompts.join("\n\n"),copyAll);
+    }
+  }catch(e){
+    status_.className="err";
+    status_.textContent = "Error: "+e.message + (e.message==="Failed to fetch" ? " (network/CORS - check connection)" : "");
+  }finally{ go.disabled=false; }
+};
+
+/* ── manual assembler ── */
+const mtype=$("mtype"), mfaction=$("mfaction"), mdesc=$("mdesc"), mout=$("mout"), mcopy=$("mcopy");
+function mbuild(){
+  const t=mtype.value, f=mfaction.value, pal=PAL[f]||"",
+        fn = f==="Bloodhorde (dark elf)" ? "Bloodhorde" : f,
+        s=mdesc.value.trim().replace(/\.+$/,"");
+  if(!s){ mout.textContent="—"; return; }
+  let p="";
+  if(t==="unit") p = s+". Clean fantasy pixel art, upright full-body character with a readable silhouette, 3/4 top-down view, plain background"+(pal?"; cohesive "+fn+" palette of "+pal:"")+".";
+  else if(t==="icon") p = s+(pal?", "+pal:"")+". Painterly fantasy game icon, centered emblem composition on a plain dark background, strong readable silhouette, no text --ar 1:1 --niji";
+  else if(t==="portrait") p = "Half-body portrait of "+s+(pal?", "+pal:"")+", fantasy game art style, dramatic cinematic light --ar 1:1 --niji";
+  else if(t==="arena") p = "top-down view of "+s+", an open clear flat centre for combat, no characters, bird's-eye 3/4 perspective, dark fantasy"+(pal?", "+pal:"")+", atmospheric light --ar 16:9 --niji";
+  else p = s+" --ar 1:1 --niji";
+  mout.textContent=p;
+}
+[mtype,mfaction,mdesc].forEach(el=>el.addEventListener("input",mbuild));
+mcopy.onclick=()=>{ if(mout.textContent!=="—") copyText(mout.textContent,mcopy); };
+</script>
+</body>
+</html>
