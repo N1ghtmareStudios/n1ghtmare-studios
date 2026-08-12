@@ -39,7 +39,7 @@
 
   #board{
     display:grid; gap:4px; margin:0 auto 16px; width:100%;
-    aspect-ratio:6/5;
+    aspect-ratio:1;
   }
   .cell{
     background:#12101c; border:1px solid #1d1930; border-radius:6px;
@@ -48,6 +48,8 @@
   }
   .cell.legal{border-color:rgba(224,161,84,.42); background:#171325}
   .cell.filled{border-color:transparent}
+  .cell.clearing{animation:march .28s ease forwards}
+  @keyframes march{ to{ transform:scale(.2); opacity:0 } }
   .cell .tag{position:absolute; right:2px; bottom:1px; font:700 9px/1 inherit; opacity:.7}
 
   .tray{display:flex; flex-wrap:wrap; gap:9px; justify-content:center; margin-bottom:14px; min-height:66px}
@@ -56,6 +58,7 @@
     padding:8px; cursor:pointer; display:grid; gap:2px;
   }
   .piece.sel{border-color:var(--glow); background:#1c1728}
+  .piece.dead{opacity:.32}
   .piece .pc{width:13px; height:13px; border-radius:3px}
   .piece .pc.off{background:none}
 
@@ -116,34 +119,37 @@
 
 <div class="wrap">
   <h1>Back<b>pack</b></h1>
-  <p class="day" id="dayLabel">Daily pack</p>
+  <p class="day" id="dayLabel">Daily run</p>
 
-  <div class="scorebar"><span class="n" id="score">0</span><span class="l">points</span></div>
+  <div class="scorebar">
+    <span class="n" id="score">0</span><span class="l">points</span>
+    <span class="l" id="combo"></span>
+  </div>
 
   <div id="board"></div>
   <div class="tray" id="tray"></div>
 
   <div class="row">
     <button id="rotBtn">Rotate</button>
-    <button id="clearBtn">Clear</button>
-    <button class="primary" id="doneBtn" disabled>Finish</button>
+    <button id="restartBtn">Restart</button>
   </div>
 
   <div class="legend">
-    <h2>The warband</h2>
-    <div><i style="background:var(--bone)"></i><span><b>Bones</b> — +2 for each other bone unit it touches</span></div>
-    <div><i style="background:var(--steel)"></i><span><b>Knight</b> — +3 for each touching unit of a different kind</span></div>
-    <div><i style="background:var(--orc)"></i><span><b>Orc</b> — +4 when it reaches the edge of the pack</span></div>
+    <h2>How it pays</h2>
+    <div><i style="background:#2a2540"></i><span><b>Fill a row or column</b> — it marches out. +10, and far more for several at once</span></div>
+    <div><i style="background:var(--bone)"></i><span><b>Bones</b> — +2 per bone square it touches</span></div>
+    <div><i style="background:var(--steel)"></i><span><b>Knight</b> — +3 per touching square of another kind</span></div>
+    <div><i style="background:var(--orc)"></i><span><b>Orc</b> — +4 when it reaches the edge</span></div>
     <div><i style="background:var(--arch)"></i><span><b>Archer</b> — +6, but only with nothing touching it</span></div>
-    <div style="margin-top:10px"><i style="background:#2a2540"></i><span>+1 per filled square &middot; +6 for packing all six</span></div>
+    <div style="margin-top:10px"><i style="background:#2a2540"></i><span>Runs until nothing in the tray fits. Same pieces for everyone, all day.</span></div>
   </div>
 </div>
 
 <div class="panel" id="overPanel">
   <div class="card">
-    <p class="sub">Today's pack</p>
+    <p class="sub">The pack is full</p>
     <div class="big" id="finalScore">0</div>
-    <p class="grade" id="finalGrade">Rabble</p>
+    <p class="grade" id="finalGrade">Baggage</p>
     <p class="sub" id="finalBest" style="margin-bottom:14px">Your best today 0</p>
 
     <div id="submitWrap" style="display:none">
@@ -153,7 +159,7 @@
     </div>
 
     <div class="row" style="margin-bottom:0">
-      <button class="primary" id="retryBtn">Try again</button>
+      <button class="primary" id="retryBtn">Run again</button>
       <a class="btn" href="/#games">Back</a>
     </div>
     <div class="board2" id="lb"></div>
@@ -164,12 +170,15 @@
 (() => {
 "use strict";
 
-/* Delad topplista med övriga gratisspel. Dagens pack får ett eget id, så
-   listan nollställs automatiskt varje dygn. Tom sträng = bara lokalt.  */
+/* Delad topplista med övriga gratisspel. Dagens körning får ett eget id,
+   så listan börjar om varje dygn. Tom sträng = bara lokalt rekord.    */
 const API = "";
 const LS_NAME = "wisp_name";
 
-/* ── dagens seed ─────────────────────────────────────────────────── */
+/* ── dagens seed ─────────────────────────────────────────────────────
+   Bitströmmen är seedad på datumet: alla får samma bitar i samma ordning
+   hela dagen, och en omstart ger samma körning igen. Topplistan mäter
+   alltså skicklighet, inte tur.                                       */
 const now = new Date();
 const DAY = now.getFullYear() + "-" +
             String(now.getMonth() + 1).padStart(2, "0") + "-" +
@@ -185,209 +194,206 @@ function mulberry(a){
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
 }
-let h = 2166136261;
-for (const ch of DAY){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
-const rnd = mulberry(h);
+function daySeed(){
+  let h = 2166136261;
+  for (const ch of DAY){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return h;
+}
+let rnd = mulberry(daySeed());
 
 /* ── bräde och bitar ─────────────────────────────────────────────── */
-const COLS = 6, ROWS = 5;
-const KINDS = {
-  bone:  { color: "var(--bone)",  label: "B" },
-  steel: { color: "var(--steel)", label: "K" },
-  orc:   { color: "var(--orc)",   label: "O" },
-  arch:  { color: "var(--arch)",  label: "A" },
-};
+const N = 8;
+const KINDS = { bone:"var(--bone)", steel:"var(--steel)", orc:"var(--orc)", arch:"var(--arch)" };
+const KEYS = Object.keys(KINDS);
 const SHAPES = [
-  [[0,0],[1,0]],                    // domino
-  [[0,0],[1,0],[2,0]],              // rad om tre
-  [[0,0],[1,0],[0,1]],              // hörn
-  [[0,0],[1,0],[0,1],[1,1]],        // kvadrat
-  [[0,0],[1,0],[2,0],[1,1]],        // T
-  [[1,0],[2,0],[0,1],[1,1]],        // S
-  [[0,0],[0,1],[0,2]],              // stapel om tre
-  [[0,0],[1,0],[1,1],[2,1]],        // Z
-  [[0,0],[1,0],[2,0],[2,1]],        // L om fyra
+  [[0,0],[1,0]],
+  [[0,0],[0,1]],
+  [[0,0],[1,0],[2,0]],
+  [[0,0],[0,1],[0,2]],
+  [[0,0],[1,0],[0,1]],
+  [[0,0],[1,0],[0,1],[1,1]],
+  [[0,0],[1,0],[2,0],[1,1]],
+  [[1,0],[2,0],[0,1],[1,1]],
+  [[0,0],[1,0],[1,1],[2,1]],
+  [[0,0],[1,0],[2,0],[2,1]],
+  [[0,0],[0,1],[1,1]],
 ];
+const norm = c => {
+  const mx = Math.min(...c.map(p=>p[0])), my = Math.min(...c.map(p=>p[1]));
+  return c.map(p => [p[0]-mx, p[1]-my]);
+};
+const rot = c => norm(c.map(([x,y]) => [-y, x]));
 
-function norm(cells){
-  const mx = Math.min(...cells.map(c => c[0])), my = Math.min(...cells.map(c => c[1]));
-  return cells.map(c => [c[0]-mx, c[1]-my]);
+let board, tray, sel, score, combo, best, over;
+
+function newPiece(){
+  return { kind: KEYS[Math.floor(rnd()*KEYS.length)],
+           cells: norm(SHAPES[Math.floor(rnd()*SHAPES.length)]) };
 }
-function rot(cells){
-  return norm(cells.map(([x,y]) => [-y, x]));
+function refill(){ tray = [newPiece(), newPiece(), newPiece()]; }
+
+function start(){
+  rnd = mulberry(daySeed());            // samma ström varje körning
+  board = Array.from({length:N}, () => Array(N).fill(null));
+  refill(); sel = null; score = 0; combo = 0; over = false;
+  document.getElementById("overPanel").classList.remove("on");
+  render();
 }
 
-/* Dagens sex enheter: en av varje sort plus två slumpade, alltid samma
-   för alla besökare samma dag.                                        */
-/* Sex enheter: en av varje sort plus två slumpade. Ytan rullas om tills
-   packen fyller 17–22 av brädets 30 rutor — tätt nog att tvinga fram val,
-   glest nog att bågskytten kan få sin luft.                             */
-function buildPieces(){
-  const all = ["bone","steel","orc","arch"];
-  const kinds = [...all, all[Math.floor(rnd()*4)], all[Math.floor(rnd()*4)]];
-  let out, sum, guard = 0;
-  do {
-    out = kinds.map((k, i) => ({
-      id: i, kind: k,
-      cells: norm(SHAPES[Math.floor(rnd() * SHAPES.length)]),
-      placed: null,          // {x, y} när den ligger på brädet
-    }));
-    sum = out.reduce((n, p) => n + p.cells.length, 0);
-  } while ((sum < 17 || sum > 22) && ++guard < 400);
-  return out;
+/* ── regler ──────────────────────────────────────────────────────── */
+function canPlace(p, ax, ay){
+  return p.cells.every(([cx,cy]) => {
+    const x = ax+cx, y = ay+cy;
+    return x>=0 && y>=0 && x<N && y<N && !board[y][x];
+  });
 }
-const pieces = buildPieces();
-let sel = null;
-
-/* ── poäng ───────────────────────────────────────────────────────── */
-function occupied(){
-  const map = new Map();     // "x,y" -> piece
-  for (const p of pieces){
-    if (!p.placed) continue;
-    for (const [cx, cy] of p.cells) map.set((p.placed.x+cx) + "," + (p.placed.y+cy), p);
+function fitsAnywhere(p){
+  let c = p.cells;
+  for (let r = 0; r < 4; r++){
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+      if (canPlace({cells:c}, x, y)) return true;
+    c = rot(c);
   }
-  return map;
+  return false;
 }
-function neighbours(p, map){
-  const set = new Set();
-  for (const [cx, cy] of p.cells){
-    const x = p.placed.x + cx, y = p.placed.y + cy;
-    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-      const o = map.get((x+dx) + "," + (y+dy));
-      if (o && o !== p) set.add(o);
+/* Synergin räknas mot rutor som redan låg där — inte mot bitens egna. */
+function placeScore(p, ax, ay){
+  let s = p.cells.length, touching = 0, sameBone = 0, diff = 0, onEdge = false;
+  const mine = new Set(p.cells.map(([cx,cy]) => (ax+cx)+","+(ay+cy)));
+  for (const [cx,cy] of p.cells){
+    const x = ax+cx, y = ay+cy;
+    if (x===0 || y===0 || x===N-1 || y===N-1) onEdge = true;
+    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx = x+dx, ny = y+dy;
+      if (nx<0||ny<0||nx>=N||ny>=N) continue;
+      if (mine.has(nx+","+ny)) continue;
+      const k = board[ny][nx];
+      if (!k) continue;
+      touching++;
+      if (k === "bone") sameBone++;
+      if (k !== p.kind) diff++;
     }
   }
-  return [...set];
+  if (p.kind === "bone")  s += 2 * sameBone;
+  if (p.kind === "steel") s += 3 * diff;
+  if (p.kind === "orc" && onEdge) s += 4;
+  if (p.kind === "arch" && touching === 0) s += 6;
+  return s;
 }
-function pieceScore(p, map){
-  const nb = neighbours(p, map);
-  if (p.kind === "bone")  return 2 * nb.filter(o => o.kind === "bone").length;
-  if (p.kind === "steel") return 3 * nb.filter(o => o.kind !== "steel").length;
-  if (p.kind === "orc")
-    return p.cells.some(([cx,cy]) => {
-      const x = p.placed.x+cx, y = p.placed.y+cy;
-      return x === 0 || y === 0 || x === COLS-1 || y === ROWS-1;
-    }) ? 4 : 0;
-  if (p.kind === "arch")  return nb.length === 0 ? 6 : 0;
-  return 0;
-}
-function total(){
-  const map = occupied();
-  let s = 0, cells = 0, placed = 0;
-  for (const p of pieces){
-    if (!p.placed) continue;
-    placed++; cells += p.cells.length;
-    s += pieceScore(p, map);
+function fullLines(){
+  const rows = [], cols = [];
+  for (let y = 0; y < N; y++) if (board[y].every(Boolean)) rows.push(y);
+  for (let x = 0; x < N; x++){
+    let full = true;
+    for (let y = 0; y < N; y++) if (!board[y][x]) { full = false; break; }
+    if (full) cols.push(x);
   }
-  return s + cells + (placed === pieces.length ? 6 : 0);
-}
-function grade(v){
-  if (v >= 62) return "Warlord";
-  if (v >= 50) return "Captain";
-  if (v >= 38) return "Warband";
-  if (v >= 26) return "Rabble";
-  return "Baggage";
-}
-
-/* ── placering ───────────────────────────────────────────────────── */
-function canPlace(p, ax, ay, map){
-  return p.cells.every(([cx, cy]) => {
-    const x = ax + cx, y = ay + cy;
-    return x >= 0 && y >= 0 && x < COLS && y < ROWS && !map.has(x + "," + y);
-  });
+  return { rows, cols };
 }
 
 /* ── rendering ───────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
 const boardEl = $("board"), trayEl = $("tray");
-boardEl.style.gridTemplateColumns = "repeat(" + COLS + ",1fr)";
+boardEl.style.gridTemplateColumns = "repeat(" + N + ",1fr)";
 
 function render(){
-  const map = occupied();
   boardEl.innerHTML = "";
-  for (let y = 0; y < ROWS; y++){
-    for (let x = 0; x < COLS; x++){
-      const el = document.createElement("div");
-      el.className = "cell";
-      const p = map.get(x + "," + y);
-      if (p){
-        el.classList.add("filled");
-        el.style.background = KINDS[p.kind].color;
-        el.style.color = "#10101a";
-        const s = pieceScore(p, map);
-        // visa poängen en gång per bit, på dess första ruta
-        const first = p.cells[0];
-        if (p.placed.x + first[0] === x && p.placed.y + first[1] === y && s)
-          el.innerHTML = '<span class="tag">+' + s + "</span>";
-      } else if (sel !== null && canPlace(pieces[sel], x, y, map)){
-        el.classList.add("legal");
-      }
-      el.onclick = () => cellTap(x, y, p);
-      boardEl.appendChild(el);
-    }
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+    const el = document.createElement("div");
+    el.className = "cell";
+    el.dataset.x = x; el.dataset.y = y;
+    const k = board[y][x];
+    if (k){ el.classList.add("filled"); el.style.background = KINDS[k]; }
+    else if (sel !== null && tray[sel] && canPlace(tray[sel], x, y)) el.classList.add("legal");
+    el.onclick = () => tap(x, y);
+    boardEl.appendChild(el);
   }
 
   trayEl.innerHTML = "";
-  for (const p of pieces){
-    if (p.placed) continue;
-    const w = Math.max(...p.cells.map(c => c[0])) + 1;
-    const hgt = Math.max(...p.cells.map(c => c[1])) + 1;
+  tray.forEach((p, i) => {
+    if (!p){ return; }
+    const w = Math.max(...p.cells.map(c=>c[0]))+1, h = Math.max(...p.cells.map(c=>c[1]))+1;
     const el = document.createElement("div");
-    el.className = "piece" + (sel === p.id ? " sel" : "");
+    el.className = "piece" + (sel === i ? " sel" : "") + (fitsAnywhere(p) ? "" : " dead");
     el.style.gridTemplateColumns = "repeat(" + w + ",13px)";
-    for (let y = 0; y < hgt; y++)
-      for (let x = 0; x < w; x++){
-        const c = document.createElement("div");
-        const on = p.cells.some(([cx,cy]) => cx === x && cy === y);
-        c.className = "pc" + (on ? "" : " off");
-        if (on) c.style.background = KINDS[p.kind].color;
-        el.appendChild(c);
-      }
-    el.onclick = () => { sel = (sel === p.id ? null : p.id); render(); };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+      const c = document.createElement("div");
+      const on = p.cells.some(([cx,cy]) => cx===x && cy===y);
+      c.className = "pc" + (on ? "" : " off");
+      if (on) c.style.background = KINDS[p.kind];
+      el.appendChild(c);
+    }
+    el.onclick = () => { sel = (sel === i ? null : i); render(); };
     trayEl.appendChild(el);
-  }
-  if (!trayEl.children.length)
-    trayEl.innerHTML = '<p style="color:var(--dim); font-size:12.5px; margin:14px 0">' +
-                       "Everything is packed — finish, or pick a unit back up.</p>";
+  });
 
-  $("score").textContent = total();
-  $("doneBtn").disabled = pieces.some(p => !p.placed);
+  $("score").textContent = score;
+  $("combo").textContent = combo > 1 ? combo + "× chain" : "";
   $("rotBtn").disabled = sel === null;
 }
 
-function cellTap(x, y, occ){
-  if (occ){                                   // plocka upp en placerad bit
-    occ.placed = null; sel = occ.id; render(); return;
+function tap(x, y){
+  if (over || sel === null) return;
+  const p = tray[sel];
+  if (!p || !canPlace(p, x, y)) return;
+
+  score += placeScore(p, x, y);
+  for (const [cx,cy] of p.cells) board[y+cy][x+cx] = p.kind;
+  tray[sel] = null; sel = null;
+
+  const { rows, cols } = fullLines();
+  const lines = rows.length + cols.length;
+  if (lines){
+    combo++;
+    score += 10 * lines * lines * (combo > 1 ? 2 : 1);
+    // markera först, städa sedan — så man hinner se raden marschera ut
+    render();
+    for (const el of boardEl.children){
+      const cx = +el.dataset.x, cy = +el.dataset.y;
+      if (rows.includes(cy) || cols.includes(cx)) el.classList.add("clearing");
+    }
+    setTimeout(() => {
+      for (const y2 of rows) board[y2] = Array(N).fill(null);
+      for (const x2 of cols) for (let y2 = 0; y2 < N; y2++) board[y2][x2] = null;
+      afterMove();
+    }, 260);
+    return;
   }
-  if (sel === null) return;
-  const p = pieces[sel];
-  if (!canPlace(p, x, y, occupied())) return;
-  p.placed = { x, y };
-  sel = null;
+  combo = 0;
+  afterMove();
+}
+function afterMove(){
+  if (tray.every(p => !p)) refill();
   render();
+  if (!tray.some(p => p && fitsAnywhere(p))) finish();
 }
 
 $("rotBtn").onclick = () => {
-  if (sel === null) return;
-  pieces[sel].cells = rot(pieces[sel].cells);
+  if (sel === null || !tray[sel]) return;
+  tray[sel].cells = rot(tray[sel].cells);
   render();
 };
-$("clearBtn").onclick = () => { for (const p of pieces) p.placed = null; sel = null; render(); };
-$("retryBtn").onclick = () => { $("overPanel").classList.remove("on"); };
-$("doneBtn").onclick = () => finish();
-
-$("dayLabel").textContent = "Daily pack · " + DAY;
+$("restartBtn").onclick = start;
+$("retryBtn").onclick = start;
+$("dayLabel").textContent = "Daily run · " + DAY;
 
 /* ── resultat ────────────────────────────────────────────────────── */
 let bestToday = 0;
 try { bestToday = (+localStorage.getItem(LS_BEST)) || 0; } catch(e){}
 
+function grade(v){
+  if (v >= 900) return "Warlord";
+  if (v >= 600) return "Captain";
+  if (v >= 380) return "Warband";
+  if (v >= 200) return "Rabble";
+  return "Baggage";
+}
 function finish(){
-  const v = total();
-  const isNew = v > bestToday;
-  if (isNew){ bestToday = v; try { localStorage.setItem(LS_BEST, v); } catch(e){} }
-  $("finalScore").textContent = v;
-  $("finalGrade").textContent = grade(v);
+  over = true;
+  const isNew = score > bestToday;
+  if (isNew){ bestToday = score; try { localStorage.setItem(LS_BEST, score); } catch(e){} }
+  $("finalScore").textContent = score;
+  $("finalGrade").textContent = grade(score);
   $("finalBest").textContent = isNew ? "New best today" : "Your best today " + bestToday;
   const wrap = $("submitWrap");
   wrap.style.display = API ? "block" : "none";
@@ -411,12 +417,11 @@ async function loadBoard(){
   }
   el.innerHTML = '<h2>Today</h2><p class="note">Loading…</p>';
   try {
-    const r = await fetch(API + "/top?game=" + GAME, { cache: "no-store" });
-    const rows = await r.json();
+    const rows = await (await fetch(API + "/top?game=" + GAME, { cache:"no-store" })).json();
     el.innerHTML = "<h2>Today</h2>" + (rows.length
       ? "<ol>" + rows.slice(0,10).map((x,i) =>
-          "<li><span>" + (i+1) + "</span><span>" + esc(x.name) + "</span><span>" +
-          x.score + "</span></li>").join("") + "</ol>"
+          "<li><span>"+(i+1)+"</span><span>"+esc(x.name)+"</span><span>"+x.score+"</span></li>"
+        ).join("") + "</ol>"
       : '<p class="note">Nobody has packed today. Go first.</p>');
   } catch(e){
     el.innerHTML = '<h2>Today</h2><p class="note">Offline — your best: ' + bestToday + "</p>";
@@ -430,7 +435,7 @@ $("submitBtn").onclick = async () => {
   btn.disabled = true; btn.textContent = "Sending…";
   try {
     await fetch(API + "/score?game=" + GAME, {
-      method: "POST", headers: { "content-type": "application/json" },
+      method:"POST", headers:{ "content-type":"application/json" },
       body: JSON.stringify({ name, score: bestToday })
     });
     btn.textContent = "Submitted";
@@ -440,9 +445,10 @@ $("submitBtn").onclick = async () => {
 };
 
 if (location.hash === "#debug")
-  window.__pack = { pieces, total, canPlace, occupied, render,
-                    place: (i,x,y) => { pieces[i].placed = {x,y}; render(); } };
+  window.__pack = { get board(){return board;}, get tray(){return tray;},
+                    get score(){return score;}, get over(){return over;},
+                    canPlace, rot, tap: (x,y)=>tap(x,y), sel: i => { sel = i; render(); } };
 
-render();
+start();
 })();
 </script>
