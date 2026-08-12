@@ -95,12 +95,10 @@ a:focus-visible, .btn:focus-visible{outline:2px solid var(--gold); outline-offse
   position:absolute; inset:0; background-position:center; background-size:cover;
   opacity:var(--art-veil); filter:var(--art-tone) grayscale(.3) contrast(1.05);
 }
-/* levande hero: Tendril-kolonin växer bakom rubriken (Lab-tekniken).
-   Den statiska konsten tonas ner till en skugga när simmen startar. */
+/* hero: mjuk aska som driver ner genom nyckelbilden */
 .hero-sim{position:absolute; inset:0; width:100%; height:100%; display:block;
   opacity:0; transition:opacity 1.6s ease}
 .hero.sim-on .hero-sim{opacity:1}
-.hero.sim-on .hero-art{opacity:.1}
 .hero-veil{position:absolute; inset:0;
   background:radial-gradient(120% 90% at 50% 32%, transparent, var(--ground) 76%)}
 .hero .wrap{position:relative; z-index:1; padding:clamp(64px,13vw,104px) 22px; text-align:center}
@@ -524,203 +522,91 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
 
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "d8589e4b2562466ea9992fe86ba4d866"}'></script><!-- End Cloudflare Web Analytics -->
 <script>
-/* ── levande hero ────────────────────────────────────────────────────
-   Samma Physarum-koloni som labbet, nerskalad till bakgrundsbruk:
-   få agenter, långsam fart, iskall palett. Hoppas över helt vid
-   reducerad rörelse eller utan WebGL2, då står nyckelbilden kvar.   */
+/* ── hero: sakta fallande aska ───────────────────────────────────────
+   Mjuka motes som driver ner genom bilden, additivt ritade så de bara
+   lyser i mörkret. Canvas 2D — billigt, inget GPU-minne, inga
+   kontextförluster. Hoppas över vid reducerad rörelse.              */
 (function(){
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var cvs = document.getElementById('heroSim');
   if (!cvs) return;
-  var hero = cvs.closest('.hero');
-  var gl = cvs.getContext('webgl2', { alpha:true, antialias:false, depth:false });
-  if (!gl || !gl.getExtension('EXT_color_buffer_float')) return;
+  var hero = cvs.closest('.hero'), ctx = cvs.getContext('2d');
+  if (!ctx) return;
 
-  var P = { sd:22, sa:0.72, turn:0.11, speed:1.15, decay:0.972, dep:0.17 };
-  var SCALE = 2.6, W = 0, H = 0, N = 0, lastW = 0, lastH = 0, lost = false;
+  var W = 0, H = 0, dpr = 1, motes = [], visible = true, last = 0;
 
-  function sh(t, s){ var o = gl.createShader(t); gl.shaderSource(o, s.trim());
-    gl.compileShader(o); return o; }
-  function prog(v, f, tf){ var p = gl.createProgram();
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, v)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, f));
-    if (tf) gl.transformFeedbackVaryings(p, tf, gl.INTERLEAVED_ATTRIBS);
-    gl.linkProgram(p);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) return null;
-    return p; }
-  function uni(p){ var u = {}, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
-    for (var i=0;i<n;i++){ var a = gl.getActiveUniform(p, i); u[a.name] = gl.getUniformLocation(p, a.name); }
-    return u; }
-
-  var QUAD = '#version 300 es\nout vec2 v_uv;\nvoid main(){ vec2 p = vec2((gl_VertexID<<1)&2, gl_VertexID&2);\n v_uv = p; gl_Position = vec4(p*2.0-1.0, 0.0, 1.0); }';
-
-  var pUpd = prog('#version 300 es\nprecision highp float;\nlayout(location=0) in vec4 a;\nuniform sampler2D u_t;\nuniform vec2 u_s;\nuniform float u_sd,u_sa,u_turn,u_sp,u_f;\nout vec4 v;\nuint hash(uint x){ x^=x>>16; x*=0x7feb352du; x^=x>>15; x*=0x846ca68bu; x^=x>>16; return x; }\nfloat sense(vec2 p){ return texture(u_t, p/u_s).r; }\nvoid main(){\n float x=a.x,y=a.y,an=a.z; vec2 p=vec2(x,y);\n float F=sense(p+vec2(cos(an),sin(an))*u_sd);\n float L=sense(p+vec2(cos(an-u_sa),sin(an-u_sa))*u_sd);\n float R=sense(p+vec2(cos(an+u_sa),sin(an+u_sa))*u_sd);\n float na=an;\n if(F>L&&F>R){}\n else if(F<L&&F<R){ uint sd=uint(gl_VertexID)*747796405u+uint(u_f)*2891336453u;\n  na = an + ((float(hash(sd)&0xffffffu)/16777216.0)<0.5 ? -u_turn : u_turn); }\n else if(R>L) na=an+u_turn; else if(L>R) na=an-u_turn;\n v = vec4(mod(x+cos(na)*u_sp, u_s.x), mod(y+sin(na)*u_sp, u_s.y), na, 0.0);\n gl_Position = vec4(0.0); gl_PointSize = 1.0; }',
-    '#version 300 es\nprecision highp float; out vec4 o; void main(){ o = vec4(0.0); }', ['v']);
-
-  var pDep = prog('#version 300 es\nprecision highp float;\nlayout(location=0) in vec4 a;\nuniform vec2 u_s;\nvoid main(){ gl_Position = vec4(a.xy/u_s*2.0-1.0, 0.0, 1.0); gl_PointSize = 1.0; }',
-    '#version 300 es\nprecision highp float; uniform float u_d; out vec4 o; void main(){ o = vec4(u_d,0.0,0.0,0.0); }');
-
-  var pDif = prog(QUAD, '#version 300 es\nprecision highp float;\nuniform sampler2D u_t; uniform vec2 u_px; uniform float u_k;\nin vec2 v_uv; out vec4 o;\nvoid main(){ float s=0.0;\n for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++) s += texture(u_t, v_uv+vec2(float(i),float(j))*u_px).r;\n o = vec4(s/9.0*u_k, 0.0,0.0,0.0); }');
-
-  /* Ice-rampen ur labbet, som ren funktion — ingen LUT-textur behövs.
-     Alfa följer ljusstyrkan så hero-konsten skiner igenom i mörkret. */
-  var pDsp = prog(QUAD, '#version 300 es\nprecision highp float;\nuniform sampler2D u_t; uniform vec2 u_bl;\nin vec2 v_uv; out vec4 o;\nvec3 ramp(float m){\n vec3 c = mix(vec3(0.012,0.020,0.055), vec3(0.047,0.133,0.306), smoothstep(0.0,0.30,m));\n c = mix(c, vec3(0.110,0.471,0.706), smoothstep(0.30,0.58,m));\n c = mix(c, vec3(0.471,0.839,0.925), smoothstep(0.58,0.82,m));\n return mix(c, vec3(0.925,0.988,1.0), smoothstep(0.82,1.0,m)); }\nvoid main(){\n vec2 uv = vec2(v_uv.x, 1.0-v_uv.y);\n float t = textureLod(u_t, uv, 0.0).r;\n float b = textureLod(u_t, uv, u_bl.y).r;\n float k = max(textureLod(u_t, vec2(0.5), 20.0).r, 1e-4) * 5.67;\n float m = clamp(t/(t+k) + (b/(b+k))*u_bl.x, 0.0, 1.0);\n o = vec4(ramp(m) * 1.15, smoothstep(0.02, 0.35, m)); }');
-
-  if (!pUpd || !pDep || !pDif || !pDsp) return;
-  var uUpd = uni(pUpd), uDep = uni(pDep), uDif = uni(pDif), uDsp = uni(pDsp);
-  var vao0 = gl.createVertexArray(), tf = gl.createTransformFeedback();
-  var tex = [null,null], fbo = [null,null], cur = 0;
-  var buf = [null,null], vao = [null,null], srcB = 0;
-
-  function makeField(w, h){
-    var t = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, w, h, 0, gl.RED, gl.HALF_FLOAT, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    gl.generateMipmap(gl.TEXTURE_2D);
-    var f = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
-    gl.viewport(0,0,w,h); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
-    return [t, f];
-  }
-  function makeAgents(){
-    var b = gl.createBuffer(), v = gl.createVertexArray();
-    gl.bindVertexArray(v);
-    gl.bindBuffer(gl.ARRAY_BUFFER, b);
-    gl.bufferData(gl.ARRAY_BUFFER, N*16, gl.DYNAMIC_COPY);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
-    gl.bindVertexArray(null);
-    return [b, v];
-  }
-  function seed(){
-    var d = new Float32Array(N*4);
-    for (var i=0;i<N;i++){ d[i*4] = Math.random()*W; d[i*4+1] = Math.random()*H;
-      d[i*4+2] = Math.random()*6.2832; }
-    for (var k=0;k<2;k++){ gl.bindBuffer(gl.ARRAY_BUFFER, buf[k]);
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, d); }
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  }
-  function size(){
+  function build(){
     var r = hero.getBoundingClientRect();
-    cvs.width  = Math.max(64, Math.round(r.width));
-    cvs.height = Math.max(64, Math.round(r.height));
-    /* finare rutnät på små skärmar, annars blir nätet bara ett par
-       feta band; agenttätheten hålls konstant per ruta */
-    SCALE = Math.min(2.8, Math.max(1.4, cvs.width / 480));
-    W = Math.max(48, Math.round(cvs.width / SCALE));
-    H = Math.max(48, Math.round(cvs.height / SCALE));
-    N = Math.min(3200, Math.max(1200, Math.round(W * H * 0.021)));
-    for (var i=0;i<2;i++){
-      if (tex[i]) gl.deleteTexture(tex[i]);
-      if (fbo[i]) gl.deleteFramebuffer(fbo[i]);
-      var m = makeField(W, H); tex[i] = m[0]; fbo[i] = m[1];
-      if (buf[i]) gl.deleteBuffer(buf[i]);
-      if (vao[i]) gl.deleteVertexArray(vao[i]);
-      var a = makeAgents(); buf[i] = a[0]; vao[i] = a[1];
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    W = Math.max(1, r.width); H = Math.max(1, r.height);
+    cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var n = Math.round(Math.min(150, Math.max(45, W * H / 5200)));
+    motes = [];
+    for (var i = 0; i < n; i++) motes.push(spawn(Math.random() * H));
+  }
+  function spawn(y){
+    var warm = Math.random() < 0.78;
+    return {
+      x: Math.random() * W,
+      y: y,
+      r: 0.7 + Math.random() * 1.9,           // liten kärna, gloria ritas runt
+      v: 7 + Math.random() * 20,              // px per sekund — lugnt fall
+      sway: 5 + Math.random() * 16,           // sidled i px
+      w: 0.25 + Math.random() * 0.5,          // svajets takt
+      ph: Math.random() * 6.2832,
+      a: 0.12 + Math.random() * 0.34,
+      c: warm ? '224,161,84' : '198,222,244'  // guldaska med enstaka kall gnista
+    };
+  }
+
+  function frame(now){
+    requestAnimationFrame(frame);
+    if (!visible) { last = now; return; }
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < motes.length; i++){
+      var m = motes[i];
+      m.y += m.v * dt;
+      if (m.y - m.r > H) { motes[i] = spawn(-4 - Math.random() * 30); continue; }
+      var x = m.x + Math.sin(now / 1000 * m.w + m.ph) * m.sway;
+      // tona in mot toppen och ut mot botten så inget poppar
+      var edge = Math.min(1, m.y / 60) * Math.min(1, (H - m.y) / 90);
+      var a = m.a * Math.max(0, edge);
+      if (a <= 0.002) continue;
+      var g = ctx.createRadialGradient(x, m.y, 0, x, m.y, m.r * 4.5);
+      g.addColorStop(0, 'rgba(' + m.c + ',' + a + ')');
+      g.addColorStop(0.35, 'rgba(' + m.c + ',' + (a * 0.32) + ')');
+      g.addColorStop(1, 'rgba(' + m.c + ',0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, m.y, m.r * 4.5, 0, 6.2832); ctx.fill();
     }
-    cur = 0; srcB = 0; lastW = r.width; lastH = r.height; seed();
+    ctx.globalCompositeOperation = 'source-over';
   }
 
-  var frame = 0;
-  function step(){
-    var dst = srcB ^ 1;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.useProgram(pUpd);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[cur]);
-    gl.uniform1i(uUpd.u_t, 0);
-    gl.uniform2f(uUpd.u_s, W, H);
-    gl.uniform1f(uUpd.u_sd, P.sd); gl.uniform1f(uUpd.u_sa, P.sa);
-    gl.uniform1f(uUpd.u_turn, P.turn); gl.uniform1f(uUpd.u_sp, P.speed);
-    gl.uniform1f(uUpd.u_f, frame % 65536);
-    gl.bindVertexArray(vao[srcB]);
-    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buf[dst]);
-    gl.enable(gl.RASTERIZER_DISCARD);
-    gl.beginTransformFeedback(gl.POINTS);
-    gl.drawArrays(gl.POINTS, 0, N);
-    gl.endTransformFeedback();
-    gl.disable(gl.RASTERIZER_DISCARD);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-    gl.bindVertexArray(null);
-    srcB = dst;
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[cur]);
-    gl.viewport(0,0,W,H);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.useProgram(pDep);
-    gl.uniform2f(uDep.u_s, W, H);
-    gl.uniform1f(uDep.u_d, P.dep);
-    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
-    gl.bindVertexArray(vao[srcB]);
-    gl.drawArrays(gl.POINTS, 0, N);
-    gl.bindVertexArray(null);
-    gl.disable(gl.BLEND);
-
-    var fd = cur ^ 1;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[fd]);
-    gl.viewport(0,0,W,H);
-    gl.useProgram(pDif);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[cur]);
-    gl.uniform1i(uDif.u_t, 0);
-    gl.uniform2f(uDif.u_px, 1/W, 1/H);
-    gl.uniform1f(uDif.u_k, P.decay);
-    gl.bindVertexArray(vao0);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.bindVertexArray(null);
-    cur = fd;
-    frame++;
-  }
-  function draw(){
-    gl.bindTexture(gl.TEXTURE_2D, tex[cur]); gl.generateMipmap(gl.TEXTURE_2D);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0,0,cvs.width,cvs.height);
-    gl.useProgram(pDsp);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex[cur]);
-    gl.uniform1i(uDsp.u_t, 0);
-    gl.uniform2f(uDsp.u_bl, 0.5, 3.0);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.bindVertexArray(vao0);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.bindVertexArray(null);
-    gl.disable(gl.BLEND);
-  }
-
-  size();
+  build();
   hero.classList.add('sim-on');
 
-  /* pausa när hero:n är utanför vyn — inget batteri på tomgång */
-  var visible = true;
   if ('IntersectionObserver' in window)
     new IntersectionObserver(function(e){ visible = e[0].isIntersecting; },
-      { threshold:0 }).observe(hero);
+      { threshold: 0 }).observe(hero);
 
-  /* iOS fäller in adressfältet vid scroll och skickar resize hela tiden.
-     Bygg bara om vid verkliga skiften (rotation) — annars sås kolonin om
-     och det ser ut som att sidan startar om.                              */
-  var rt;
+  /* iOS skickar resize när adressfältet fälls in vid scroll — bygg bara
+     om vid verkliga skiften, annars hoppar askan till.                */
+  var rt, lastW = 0;
   addEventListener('resize', function(){
     clearTimeout(rt);
     rt = setTimeout(function(){
-      var r = hero.getBoundingClientRect();
-      if (Math.abs(r.width - lastW) < 24 && Math.abs(r.height - lastH) < lastH * 0.35) return;
-      size();
+      var w = hero.getBoundingClientRect().width;
+      if (Math.abs(w - lastW) < 24) return;
+      lastW = w; build();
     }, 260);
   });
+  lastW = hero.getBoundingClientRect().width;
 
-  /* tappad GL-kontext (minnestryck i bakgrundsflik) — sluta rita tyst */
-  cvs.addEventListener('webglcontextlost', function(e){ e.preventDefault(); lost = true; });
-
-  (function loop(){
-    requestAnimationFrame(loop);
-    if (!visible || lost) return;
-    step(); draw();
-  })();
+  requestAnimationFrame(function(t){ last = t; frame(t); });
 })();
 </script>
 </body>
