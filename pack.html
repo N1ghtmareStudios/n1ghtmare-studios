@@ -39,14 +39,16 @@
 
   #board{
     display:grid; gap:4px; margin:0 auto 16px; width:100%;
-    aspect-ratio:1;
+    aspect-ratio:1; touch-action:none;
   }
   .cell{
     background:#12101c; border:1px solid #1d1930; border-radius:6px;
     position:relative; display:flex; align-items:center; justify-content:center;
     font-size:15px; cursor:pointer; transition:background .12s, border-color .12s;
   }
-  .cell.legal{border-color:rgba(224,161,84,.42); background:#171325}
+  .cell.legal{border-color:rgba(224,161,84,.30); background:#161322}
+  .cell.ghost{background:rgba(224,161,84,.30); border-color:rgba(224,161,84,.75)}
+  .cell.ghostbad{background:rgba(255,90,80,.16); border-color:rgba(255,90,80,.5)}
   .cell.filled{border-color:transparent}
   .cell.clearing{animation:march .28s ease forwards}
   @keyframes march{ to{ transform:scale(.2); opacity:0 } }
@@ -55,7 +57,7 @@
   .tray{display:flex; flex-wrap:wrap; gap:9px; justify-content:center; margin-bottom:14px; min-height:66px}
   .piece{
     background:#12101c; border:1px solid var(--edge); border-radius:10px;
-    padding:8px; cursor:pointer; display:grid; gap:2px;
+    padding:8px; cursor:grab; display:grid; gap:2px; touch-action:none;
   }
   .piece.sel{border-color:var(--glow); background:#1c1728}
   .piece.dead{opacity:.32}
@@ -120,6 +122,7 @@
 <div class="wrap">
   <h1>Back<b>pack</b></h1>
   <p class="day" id="dayLabel">Daily run</p>
+  <p class="day" style="margin:-12px 0 14px; opacity:.75">Drag a unit onto the pack</p>
 
   <div class="scorebar">
     <span class="n" id="score">0</span><span class="l">points</span>
@@ -324,6 +327,7 @@ function render(){
       el.appendChild(c);
     }
     el.onclick = () => { sel = (sel === i ? null : i); render(); };
+    el.addEventListener("pointerdown", e => startDrag(e, i));
     trayEl.appendChild(el);
   });
 
@@ -367,6 +371,70 @@ function afterMove(){
   render();
   if (!tray.some(p => p && fitsAnywhere(p))) finish();
 }
+
+
+/* ── förhandsvisning ─────────────────────────────────────────────────
+   Utan den ser man inte var biten hamnar. Dra från facket så följer ett
+   spöke fingret; på pekskärm ritas det en bit ovanför greppet så handen
+   inte skymmer det man siktar på.                                     */
+let drag = null;
+
+function cellStep(){
+  const c0 = boardEl.children[0].getBoundingClientRect();
+  const c1 = boardEl.children[1].getBoundingClientRect();
+  const cN = boardEl.children[N].getBoundingClientRect();
+  return { x: c1.left - c0.left, y: cN.top - c0.top, w: c0.width };
+}
+function anchorFor(clientX, clientY, p, touch){
+  const r = boardEl.getBoundingClientRect(), s = cellStep();
+  const lift = touch ? s.y * 1.35 : 0;              // lyft ovanför fingret
+  const w = Math.max(...p.cells.map(c => c[0])) + 1;
+  const h = Math.max(...p.cells.map(c => c[1])) + 1;
+  const gx = Math.round((clientX - r.left - s.w / 2) / s.x) - Math.floor((w - 1) / 2);
+  const gy = Math.round((clientY - lift - r.top - s.w / 2) / s.y) - Math.floor((h - 1) / 2);
+  return { x: gx, y: gy };
+}
+function clearGhost(){
+  for (const el of boardEl.children) el.classList.remove("ghost", "ghostbad");
+}
+function showGhost(p, a){
+  clearGhost();
+  const ok = canPlace(p, a.x, a.y);
+  for (const [cx, cy] of p.cells){
+    const x = a.x + cx, y = a.y + cy;
+    if (x < 0 || y < 0 || x >= N || y >= N) continue;
+    boardEl.children[y * N + x].classList.add(ok ? "ghost" : "ghostbad");
+  }
+  return ok;
+}
+function startDrag(e, i){
+  if (over || !tray[i]) return;
+  e.preventDefault();
+  sel = i; render();
+  drag = { i, touch: e.pointerType !== "mouse", a: null };
+  try { e.target.setPointerCapture(e.pointerId); } catch(err){}
+  moveDrag(e);
+}
+function moveDrag(e){
+  if (!drag || !tray[drag.i]) return;
+  const a = anchorFor(e.clientX, e.clientY, tray[drag.i], drag.touch);
+  drag.a = a;
+  showGhost(tray[drag.i], a);
+}
+addEventListener("pointermove", e => { if (drag){ e.preventDefault(); moveDrag(e); } }, { passive:false });
+addEventListener("pointerup", () => {
+  if (!drag) return;
+  const { i, a } = drag; drag = null; clearGhost();
+  if (a && tray[i] && canPlace(tray[i], a.x, a.y)){ sel = i; tap(a.x, a.y); }
+});
+addEventListener("pointercancel", () => { drag = null; clearGhost(); });
+
+/* mus: spöket följer pekaren över brädet även utan att dra */
+boardEl.addEventListener("pointermove", e => {
+  if (drag || sel === null || !tray[sel] || e.pointerType !== "mouse") return;
+  showGhost(tray[sel], anchorFor(e.clientX, e.clientY, tray[sel], false));
+});
+boardEl.addEventListener("pointerleave", () => { if (!drag) clearGhost(); });
 
 $("rotBtn").onclick = () => {
   if (sel === null || !tray[sel]) return;
