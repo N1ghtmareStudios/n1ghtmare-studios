@@ -537,7 +537,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
   if (!gl || !gl.getExtension('EXT_color_buffer_float')) return;
 
   var P = { sd:22, sa:0.72, turn:0.11, speed:1.15, decay:0.972, dep:0.17 };
-  var SCALE = 2.6, W = 0, H = 0, N = 0;
+  var SCALE = 2.6, W = 0, H = 0, N = 0, lastW = 0, lastH = 0, lost = false;
 
   function sh(t, s){ var o = gl.createShader(t); gl.shaderSource(o, s.trim());
     gl.compileShader(o); return o; }
@@ -622,7 +622,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       if (vao[i]) gl.deleteVertexArray(vao[i]);
       var a = makeAgents(); buf[i] = a[0]; vao[i] = a[1];
     }
-    cur = 0; srcB = 0; seed();
+    cur = 0; srcB = 0; lastW = r.width; lastH = r.height; seed();
   }
 
   var frame = 0;
@@ -700,12 +700,25 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
     new IntersectionObserver(function(e){ visible = e[0].isIntersecting; },
       { threshold:0 }).observe(hero);
 
+  /* iOS fäller in adressfältet vid scroll och skickar resize hela tiden.
+     Bygg bara om vid verkliga skiften (rotation) — annars sås kolonin om
+     och det ser ut som att sidan startar om.                              */
   var rt;
-  addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(size, 220); });
+  addEventListener('resize', function(){
+    clearTimeout(rt);
+    rt = setTimeout(function(){
+      var r = hero.getBoundingClientRect();
+      if (Math.abs(r.width - lastW) < 24 && Math.abs(r.height - lastH) < lastH * 0.35) return;
+      size();
+    }, 260);
+  });
+
+  /* tappad GL-kontext (minnestryck i bakgrundsflik) — sluta rita tyst */
+  cvs.addEventListener('webglcontextlost', function(e){ e.preventDefault(); lost = true; });
 
   (function loop(){
     requestAnimationFrame(loop);
-    if (!visible) return;
+    if (!visible || lost) return;
     step(); draw();
   })();
 })();
