@@ -683,11 +683,13 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
     sprite.width = sprite.height = 64;
     var sc = sprite.getContext('2d');
     var sg = sc.createRadialGradient(32, 32, 0, 32, 32, 32);
-    /* mättad bärnsten, inte gräddvitt — additiv ritning drar ändå allt
-       mot vitt, så färgen måste börja långt ner i det varma            */
+    /* Färgen hålls konstant och bara alfat tonar ut. Tonas rgb ner mot
+       kanten hamnar ytterkanten på så lågt alfa att canvasens 8-bitars
+       lagring inte kan beskriva kulören längre — bärnstenen faller isär
+       till neutralt grått och syns som en gloria runt varje punkt.   */
     sg.addColorStop(0,    'rgba(255,166,58,1)');
-    sg.addColorStop(0.32, 'rgba(206,104,22,.48)');
-    sg.addColorStop(1,    'rgba(168,78,18,0)');
+    sg.addColorStop(0.32, 'rgba(255,166,58,.46)');
+    sg.addColorStop(1,    'rgba(255,166,58,0)');
     sc.fillStyle = sg; sc.fillRect(0, 0, 64, 64);
 
     baseGlow = ctx.createRadialGradient(W * .5, H * 1.06, 0, W * .5, H * 1.06, W * .62);
