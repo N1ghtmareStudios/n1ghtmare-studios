@@ -717,8 +717,12 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
 
   var hero = glow.closest('.hero');
   var x = 50, y = 50, tx = 50, ty = 50;      /* nuvarande och mål, i % */
-  var px = -1, py = -1;                      /* senast utskrivna värden */
-  var chased = false, visible = true, t0 = 0, lastMove = 0;
+  var px = -1, py = -1, po = -1;             /* senast utskrivna värden */
+  var o = 1, chased = false, visible = true, t0 = 0, lastMove = 0, own = false;
+
+  var CYCLE = 6.0,   /* sekunder mellan svep                          */
+      SWEEP = 2.6,   /* sekunder ljuset är på väg tvärs över rubriken */
+      REST  = 0.16;  /* hur mycket som lyser mellan svepen            */
 
   if (matchMedia('(hover: hover) and (pointer: fine)').matches)
     hero.addEventListener('pointermove', function(e){
@@ -743,29 +747,45 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
        över igen efter en stunds stillhet i stället för att frysa      */
     if (chased && t - lastMove > 2600) {
       chased = false;
-      /* starta vågen i den fas som motsvarar ljusets nuvarande läge,
-         annars far det tvärs över rubriken för att hinna ikapp        */
-      t0 = t - (Math.asin(Math.max(-1, Math.min(1, (x - 50) / 46))) / 0.34) * 1000;
+      t0 = t - SWEEP * 1000;       /* återuppta i vila, inte mitt i ett svep */
     }
 
-    if (!chased) {               /* lyktan vandrar: bred svep i sidled,
-                                      med en långsammare gungning på höjden */
-      tx = 50 + Math.sin(s * 0.34) * 46 + Math.sin(s * 0.11) * 8;
-      ty = 50 + Math.sin(s * 0.23) * 16;
+    var to = 1;                    /* mål-ljusstyrka */
+    if (chased) {
+      x += (tx - x) * 0.08;        /* eftersläpning gör muspekaren tung */
+      y += (ty - y) * 0.08;
+    } else {
+      /* taktat svep: ljuset går tvärs över rubriken, vilar, och kommer
+         tillbaka från andra hållet. Vilan är det som gör svepet till en
+         händelse i stället för ett ständigt krypande.                  */
+      var ph = s % CYCLE;
+      if (ph < SWEEP) {
+        var u = ph / SWEEP, e = u * u * (3 - 2 * u);   /* mjuk in- och utgång */
+        var back = Math.floor(s / CYCLE) % 2 === 1;
+        x  = back ? 112 - e * 124 : -12 + e * 124;
+        y  = 50;
+        to = REST + (1 - REST) * Math.sin(Math.PI * u);
+      } else {
+        to = REST;
+      }
     }
-    x += (tx - x) * 0.06;          /* eftersläpning gör ljuset tungt */
-    y += (ty - y) * 0.06;
+    o += (to - o) * 0.12;
 
     /* masken ritas om vid varje skrivning — hoppa över när ljuset i
        praktiken står stilla, t.ex. när musen ligger still            */
-    if (Math.abs(x - px) < 0.12 && Math.abs(y - py) < 0.12) return;
-    px = x; py = y;
+    if (Math.abs(x - px) < 0.12 && Math.abs(y - py) < 0.12
+        && Math.abs(o - po) < 0.004) return;
+    px = x; py = y; po = o;
     glow.style.setProperty('--lx', x.toFixed(2) + '%');
     glow.style.setProperty('--ly', y.toFixed(2) + '%');
+    if (own) glow.style.opacity = o.toFixed(3);
   }
 
   requestAnimationFrame(frame);
   setTimeout(function(){ hero.classList.add('lit'); }, 420);
+  /* låt CSS sköta intoningen först; ta sedan över opaciteten härifrån,
+     annars skulle övergången bromsa varje bildruta i svepet          */
+  setTimeout(function(){ glow.style.transition = 'none'; own = true; }, 1800);
 })();
 </script>
 </body>
