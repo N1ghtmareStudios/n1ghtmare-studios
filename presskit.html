@@ -65,6 +65,21 @@
   .btn.ghost{background:none; color:var(--gold); border-color:var(--rule); font-weight:600}
   .btns{display:flex; gap:11px; flex-wrap:wrap; margin-top:8px}
 
+  /* snabbval: en journalist som kommer för ett spel ska inte behöva
+     scrolla förbi tillstånd och faktablad först */
+  .jump{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+        gap:12px; margin-top:30px}
+  .jump a{display:block; padding:16px 18px; border:1px solid var(--rule);
+          border-radius:10px; background:var(--raised); text-decoration:none;
+          transition:border-color .15s}
+  .jump a:hover{border-color:var(--gold-soft)}
+  .jump a.lead{border-color:var(--gold-soft); background:#161b28}
+  .jump b{display:block; font:400 21px/1.2 var(--display); color:var(--ink);
+          letter-spacing:.02em; margin-bottom:2px}
+  .jump span{display:block; color:var(--ink-soft); font-size:12.5px; letter-spacing:.04em}
+  .jump em{display:block; font-style:normal; color:var(--gold); font-size:11.5px;
+           letter-spacing:.14em; text-transform:uppercase; margin-top:8px}
+
   .game{padding-top:34px; scroll-margin-top:76px}
   .game:first-of-type{padding-top:0}
   .status{display:inline-block; font:500 11px/1 var(--body); letter-spacing:.15em;
@@ -105,6 +120,21 @@
     <div class="btns" style="margin-top:22px">
       <a class="btn" href="/press/n1ghtmare-studios-press-kit.zip" download>Everything, all three games (1.6 MB)</a>
       <a class="btn ghost" href="mailto:contact@n1ghtmarestudios.com?subject=Press%20enquiry">Email us</a>
+    </div>
+
+    <div class="jump">
+      <a class="lead" href="#warpack">
+        <b translate="no">Warpack</b>
+        <span>Auto-battler &middot; Demo at Next Fest in October</span>
+        <em>Assets &amp; screenshots &rsaquo;</em></a>
+      <a href="#soulsmith">
+        <b translate="no">Soulsmith</b>
+        <span>Story action RPG &middot; Coming to Steam</span>
+        <em>Assets &amp; screenshots &rsaquo;</em></a>
+      <a href="#bonecount">
+        <b translate="no">Bonecount</b>
+        <span>Survivors-like &middot; In development</span>
+        <em>Assets &amp; screenshots &rsaquo;</em></a>
     </div>
   </div>
 </header>
