@@ -103,11 +103,36 @@ a:focus-visible, .btn:focus-visible{outline:2px solid var(--gold); outline-offse
 .hero-veil{position:absolute; inset:0;
   background:radial-gradient(120% 90% at 50% 32%, transparent, var(--ground) 76%)}
 .hero .wrap{position:relative; z-index:1; padding:clamp(64px,13vw,104px) 22px; text-align:center}
-.hero h1{
+.hero h1, .hero .title-glow{
   font:400 clamp(32px,7.4vw,62px)/1.05 var(--display);
   letter-spacing:.07em; text-transform:uppercase; margin:0; text-wrap:balance;
 }
 .hero h1 em{font-style:normal; color:var(--gold)}
+
+/* titeln: en ljuskägla som sveper över bokstäverna. En kopia av rubriken
+   ligger exakt ovanpå, tänd och glödande, men maskad till en mjuk cirkel
+   som JS flyttar. Utanför cirkeln syns bara originalet.               */
+.title{position:relative; display:block}
+/* rubriken vilar dämpad medan ljuset är i rörelse — men bara när
+   effekten faktiskt är igång, så en sida utan JS behåller full titel */
+.hero.lit h1{color:#9aa1ad; transition:color 1.2s ease}
+.hero.lit h1 em{color:#9a742e}
+.title-glow{
+  --lx:50%; --ly:50%; --lr:clamp(100px,24vw,260px);
+  position:absolute; inset:0; pointer-events:none; user-select:none;
+  color:#fffdf6; opacity:0; transition:opacity 1.2s ease;
+  text-shadow:0 0 10px rgba(255,236,196,.95), 0 0 30px rgba(255,198,104,.55),
+              0 0 70px rgba(200,146,47,.38);
+  -webkit-mask-image:radial-gradient(circle var(--lr) at var(--lx) var(--ly),
+    #000 0%, rgba(0,0,0,.62) 38%, transparent 68%);
+          mask-image:radial-gradient(circle var(--lr) at var(--lx) var(--ly),
+    #000 0%, rgba(0,0,0,.62) 38%, transparent 68%);
+}
+.title-glow em{font-style:normal; color:#ffdf9c;
+  text-shadow:0 0 12px rgba(255,208,120,.95), 0 0 34px rgba(255,176,60,.60),
+              0 0 76px rgba(200,146,47,.42)}
+.hero.lit .title-glow{opacity:1}
+@media (prefers-reduced-motion:reduce){ .title-glow{display:none} }
 .crest{display:flex; align-items:center; justify-content:center; gap:12px; margin:26px 0}
 .crest span{height:1px; width:52px; background:var(--gold-soft)}
 .crest i{width:5px; height:5px; background:var(--gold); transform:rotate(45deg)}
@@ -233,7 +258,10 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
   <div class="hero-veil"></div>
   <canvas class="hero-sim" id="heroSim" aria-hidden="true"></canvas>
   <div class="wrap">
-    <h1 translate="no">N1ghtmare <em>Studios</em></h1>
+    <div class="title">
+      <h1 translate="no">N1ghtmare <em>Studios</em></h1>
+      <span class="title-glow" aria-hidden="true" translate="no">N1ghtmare <em>Studios</em></span>
+    </div>
     <div class="crest"><span></span><i></i><span></span></div>
     <p class="motto">Made in the dark.<b>Bring a light.</b></p>
     <p>An independent game studio from Sweden, building dark fantasy games
@@ -664,6 +692,69 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
   });
 
   requestAnimationFrame(function(t){ last = t; frame(t); });
+})();
+
+/* ── titelns ljuskägla ────────────────────────────────────────────────
+   På mus följer ljuset pekaren. På pekskärm — där det inte finns någon
+   pekare att följa — vandrar det sakta av sig självt, som en lykta som
+   bärs förbi. Positionen skrivs som procent av rubrikens ruta, så samma
+   siffror gäller oavsett skärmbredd.                                   */
+(function(){
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var glow = document.querySelector('.title-glow');
+  if (!glow || !CSS.supports('mask-image', 'radial-gradient(circle 10px at 0 0, #000, transparent)')
+            && !CSS.supports('-webkit-mask-image', 'radial-gradient(circle 10px at 0 0, #000, transparent)')) return;
+
+  var hero = glow.closest('.hero'), title = glow.parentNode;
+  var x = 50, y = 50, tx = 50, ty = 50;      /* nuvarande och mål, i % */
+  var px = -1, py = -1;                      /* senast utskrivna värden */
+  var chased = false, visible = true, t0 = 0, lastMove = 0;
+
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches)
+    hero.addEventListener('pointermove', function(e){
+      var r = title.getBoundingClientRect();
+      tx = ((e.clientX - r.left) / r.width)  * 100;
+      ty = ((e.clientY - r.top)  / r.height) * 100;
+      chased = true; lastMove = performance.now();
+    }, { passive: true });
+
+  if ('IntersectionObserver' in window)
+    new IntersectionObserver(function(en){ visible = en[0].isIntersecting; },
+      { threshold: 0 }).observe(hero);
+
+  function frame(t){
+    requestAnimationFrame(frame);
+    if (!visible) return;
+    if (!t0) t0 = t;
+    var s = (t - t0) / 1000;
+
+    /* lämnar musen hero:n stannar ljuset där det låg — låt lyktan ta
+       över igen efter en stunds stillhet i stället för att frysa      */
+    if (chased && t - lastMove > 2600) {
+      chased = false;
+      /* starta vågen i den fas som motsvarar ljusets nuvarande läge,
+         annars far det tvärs över rubriken för att hinna ikapp        */
+      t0 = t - (Math.asin(Math.max(-1, Math.min(1, (x - 50) / 46))) / 0.34) * 1000;
+    }
+
+    if (!chased) {               /* lyktan vandrar: bred svep i sidled,
+                                      med en långsammare gungning på höjden */
+      tx = 50 + Math.sin(s * 0.34) * 46 + Math.sin(s * 0.11) * 8;
+      ty = 50 + Math.sin(s * 0.23) * 16;
+    }
+    x += (tx - x) * 0.06;          /* eftersläpning gör ljuset tungt */
+    y += (ty - y) * 0.06;
+
+    /* masken ritas om vid varje skrivning — hoppa över när ljuset i
+       praktiken står stilla, t.ex. när musen ligger still            */
+    if (Math.abs(x - px) < 0.12 && Math.abs(y - py) < 0.12) return;
+    px = x; py = y;
+    glow.style.setProperty('--lx', x.toFixed(2) + '%');
+    glow.style.setProperty('--ly', y.toFixed(2) + '%');
+  }
+
+  requestAnimationFrame(frame);
+  setTimeout(function(){ hero.classList.add('lit'); }, 420);
 })();
 </script>
 </body>
