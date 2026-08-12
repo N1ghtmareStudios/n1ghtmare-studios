@@ -122,7 +122,7 @@
 <div class="wrap">
   <h1>Back<b>pack</b></h1>
   <p class="day" id="dayLabel">Daily run</p>
-  <p class="day" style="margin:-12px 0 14px; opacity:.75">Drag a unit onto the pack</p>
+  <p class="day" style="margin:-12px 0 14px; opacity:.75">Drag a unit onto the pack &middot; tap it to turn it</p>
 
   <div class="scorebar">
     <span class="n" id="score">0</span><span class="l">points</span>
@@ -133,7 +133,6 @@
   <div class="tray" id="tray"></div>
 
   <div class="row">
-    <button id="rotBtn">Rotate</button>
     <button id="restartBtn">Restart</button>
   </div>
 
@@ -227,7 +226,7 @@ const norm = c => {
 };
 const rot = c => norm(c.map(([x,y]) => [-y, x]));
 
-let board, tray, sel, score, combo, best, over;
+let board, tray, score, combo, best, over;
 
 function newPiece(){
   return { kind: KEYS[Math.floor(rnd()*KEYS.length)],
@@ -238,7 +237,7 @@ function refill(){ tray = [newPiece(), newPiece(), newPiece()]; }
 function start(){
   rnd = mulberry(daySeed());            // samma ström varje körning
   board = Array.from({length:N}, () => Array(N).fill(null));
-  refill(); sel = null; score = 0; combo = 0; over = false;
+  refill(); score = 0; combo = 0; over = false;
   document.getElementById("overPanel").classList.remove("on");
   render();
 }
@@ -307,8 +306,7 @@ function render(){
     el.dataset.x = x; el.dataset.y = y;
     const k = board[y][x];
     if (k){ el.classList.add("filled"); el.style.background = KINDS[k]; }
-    else if (sel !== null && tray[sel] && canPlace(tray[sel], x, y)) el.classList.add("legal");
-    el.onclick = () => tap(x, y);
+    else if (drag && tray[drag.i] && canPlace(tray[drag.i], x, y)) el.classList.add("legal");
     boardEl.appendChild(el);
   }
 
@@ -317,7 +315,7 @@ function render(){
     if (!p){ return; }
     const w = Math.max(...p.cells.map(c=>c[0]))+1, h = Math.max(...p.cells.map(c=>c[1]))+1;
     const el = document.createElement("div");
-    el.className = "piece" + (sel === i ? " sel" : "") + (fitsAnywhere(p) ? "" : " dead");
+    el.className = "piece" + (drag && drag.i === i ? " sel" : "") + (fitsAnywhere(p) ? "" : " dead");
     el.style.gridTemplateColumns = "repeat(" + w + ",13px)";
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
       const c = document.createElement("div");
@@ -326,24 +324,22 @@ function render(){
       if (on) c.style.background = KINDS[p.kind];
       el.appendChild(c);
     }
-    el.onclick = () => { sel = (sel === i ? null : i); render(); };
     el.addEventListener("pointerdown", e => startDrag(e, i));
     trayEl.appendChild(el);
   });
 
   $("score").textContent = score;
   $("combo").textContent = combo > 1 ? combo + "× chain" : "";
-  $("rotBtn").disabled = sel === null;
 }
 
-function tap(x, y){
-  if (over || sel === null) return;
-  const p = tray[sel];
+function place(i, x, y){
+  if (over) return;
+  const p = tray[i];
   if (!p || !canPlace(p, x, y)) return;
 
   score += placeScore(p, x, y);
   for (const [cx,cy] of p.cells) board[y+cy][x+cx] = p.kind;
-  tray[sel] = null; sel = null;
+  tray[i] = null;
 
   const { rows, cols } = fullLines();
   const lines = rows.length + cols.length;
@@ -410,13 +406,15 @@ function showGhost(p, a){
 function startDrag(e, i){
   if (over || !tray[i]) return;
   e.preventDefault();
-  sel = i; render();
-  drag = { i, touch: e.pointerType !== "mouse", a: null };
+  drag = { i, touch: e.pointerType !== "mouse", a: null,
+           x0: e.clientX, y0: e.clientY, moved: false };
+  render();
   try { e.target.setPointerCapture(e.pointerId); } catch(err){}
   moveDrag(e);
 }
 function moveDrag(e){
   if (!drag || !tray[drag.i]) return;
+  if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 8) drag.moved = true;
   const a = anchorFor(e.clientX, e.clientY, tray[drag.i], drag.touch);
   drag.a = a;
   showGhost(tray[drag.i], a);
@@ -424,23 +422,14 @@ function moveDrag(e){
 addEventListener("pointermove", e => { if (drag){ e.preventDefault(); moveDrag(e); } }, { passive:false });
 addEventListener("pointerup", () => {
   if (!drag) return;
-  const { i, a } = drag; drag = null; clearGhost();
-  if (a && tray[i] && canPlace(tray[i], a.x, a.y)){ sel = i; tap(a.x, a.y); }
+  const { i, a, moved } = drag; drag = null; clearGhost();
+  // ett tryck utan rörelse vrider biten; ett drag placerar den
+  if (!moved){ if (tray[i]) tray[i].cells = rot(tray[i].cells); render(); return; }
+  if (a && tray[i] && canPlace(tray[i], a.x, a.y)) place(i, a.x, a.y);
+  else render();
 });
 addEventListener("pointercancel", () => { drag = null; clearGhost(); });
 
-/* mus: spöket följer pekaren över brädet även utan att dra */
-boardEl.addEventListener("pointermove", e => {
-  if (drag || sel === null || !tray[sel] || e.pointerType !== "mouse") return;
-  showGhost(tray[sel], anchorFor(e.clientX, e.clientY, tray[sel], false));
-});
-boardEl.addEventListener("pointerleave", () => { if (!drag) clearGhost(); });
-
-$("rotBtn").onclick = () => {
-  if (sel === null || !tray[sel]) return;
-  tray[sel].cells = rot(tray[sel].cells);
-  render();
-};
 $("restartBtn").onclick = start;
 $("retryBtn").onclick = start;
 $("dayLabel").textContent = "Daily run · " + DAY;
@@ -515,7 +504,7 @@ $("submitBtn").onclick = async () => {
 if (location.hash === "#debug")
   window.__pack = { get board(){return board;}, get tray(){return tray;},
                     get score(){return score;}, get over(){return over;},
-                    canPlace, rot, tap: (x,y)=>tap(x,y), sel: i => { sel = i; render(); } };
+                    canPlace, rot, place };
 
 start();
 })();
