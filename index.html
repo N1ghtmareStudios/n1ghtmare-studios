@@ -644,7 +644,8 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
     m.sw  = 5 + Math.random() * 11;             // hur brett den vaggar
     m.ph  = Math.random() * 6.2832;
     m.dur = 7 + Math.random() * 7;              // sekunder på skärmen
-    m.a   = 0.12 + Math.random() * 0.15;
+    m.a   = 0.20 + Math.random() * 0.24;        /* mindre yta, så starkare */
+    m.fl  = 1.6 + Math.random() * 2.8;          /* eget fladdertempo */
     m.age = spread ? Math.random() : 0;         /* vid start: sprid ut dem
                                                    så de inte tänds i takt */
     if (spread) m.y += m.vy * m.age * m.dur;
@@ -688,7 +689,8 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
        lagring inte kan beskriva kulören längre — bärnstenen faller isär
        till neutralt grått och syns som en gloria runt varje punkt.   */
     sg.addColorStop(0,    'rgba(255,166,58,1)');
-    sg.addColorStop(0.32, 'rgba(255,166,58,.46)');
+    sg.addColorStop(0.16, 'rgba(255,166,58,.62)');   /* tät kärna ... */
+    sg.addColorStop(0.42, 'rgba(255,166,58,.13)');   /* ... och kort svans */
     sg.addColorStop(1,    'rgba(255,166,58,0)');
     sc.fillStyle = sg; sc.fillRect(0, 0, 64, 64);
 
@@ -735,9 +737,10 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       m.age += dt / m.dur;
       if (m.age >= 1){ seedMote(m, false); continue; }
 
-      var ma = m.a * Math.sin(Math.PI * m.age);      // tänds och slocknar mjukt
+      var ma = m.a * Math.sin(Math.PI * m.age)       // tänds och slocknar mjukt
+                   * (0.78 + Math.sin(now / 1000 * m.fl + m.ph) * 0.22);  /* fladder */
       var mx = m.x + Math.sin(now / 1000 * 0.42 + m.ph) * m.sw;
-      var md = m.r * 14;
+      var md = m.r * 6.5;
       ctx.globalAlpha = ma;
       ctx.drawImage(sprite, mx - md / 2, m.y - md / 2, md, md);
     }
