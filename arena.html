@@ -526,11 +526,13 @@ reset(); requestAnimationFrame(loop);
 
 /* ── slut ────────────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
+/* Kalibrerat mot en riktig körning: 4:34 med 1769 dödade landar strax
+   under Bonelord, så toppbetyget kräver att man slår den.            */
 function grade(v){
-  if (v >= 4000) return "Bonelord";
-  if (v >= 2400) return "Reaper";
-  if (v >= 1300) return "Gravewalker";
-  if (v >= 600)  return "Survivor";
+  if (v >= 17000) return "Bonelord";
+  if (v >= 9000)  return "Reaper";
+  if (v >= 4000)  return "Gravewalker";
+  if (v >= 1500)  return "Survivor";
   return "Fodder";
 }
 function die(){
@@ -538,7 +540,7 @@ function die(){
   document.body.classList.remove("playing");
   puff(P.x, P.y, 40, "#e0a154", 1.6);
   shake = 1; flash = 1;
-  score = Math.round(t * 10) + boneCount * 12 + kills * 5;
+  score = Math.round(t * 20) + kills * 3 + boneCount * 2;
   const isNew = score > best;
   if (isNew){ best = score; try { localStorage.setItem(LS_BEST, best); } catch(e){} }
   $("finalScore").textContent = score;
