@@ -65,7 +65,7 @@
   .btn.ghost{background:none; color:var(--gold); border-color:var(--rule); font-weight:600}
   .btns{display:flex; gap:11px; flex-wrap:wrap; margin-top:8px}
 
-  .game{padding-top:34px}
+  .game{padding-top:34px; scroll-margin-top:76px}
   .game:first-of-type{padding-top:0}
   .status{display:inline-block; font:500 11px/1 var(--body); letter-spacing:.15em;
           text-transform:uppercase; color:var(--gold); border:1px solid var(--gold-soft);
@@ -100,9 +100,10 @@
     <h1>Press <em>kit</em></h1>
     <p class="lede">Everything you need to write about, record or stream our games,
        in one place. No permission required, no embargo to sign, no forms.
+       Each game below has its own bundle if you only need one, or take the lot.
        If something is missing, ask and you will have it the same day.</p>
     <div class="btns" style="margin-top:22px">
-      <a class="btn" href="/press/n1ghtmare-studios-press-kit.zip" download>Download everything (1.6 MB)</a>
+      <a class="btn" href="/press/n1ghtmare-studios-press-kit.zip" download>Everything, all three games (1.6 MB)</a>
       <a class="btn ghost" href="mailto:contact@n1ghtmarestudios.com?subject=Press%20enquiry">Email us</a>
     </div>
   </div>
@@ -148,7 +149,7 @@
   <div class="wrap">
     <p class="eyebrow">Games</p>
 
-    <div class="game">
+    <div class="game" id="warpack">
       <span class="status">Coming soon to Steam &middot; Demo at Next Fest in October</span>
       <h3 translate="no">Warpack</h3>
       <p class="tags">Auto-battler &middot; Roguelite &middot; Asynchronous PvP &middot; PC</p>
@@ -158,6 +159,7 @@
          adjacency and shape matter as much as what you bought. Four factions to master,
          and a fifth marching in behind them.</p>
       <div class="btns">
+        <a class="btn" href="/press/warpack-press-kit.zip" download>Warpack assets (566 KB)</a>
         <a class="btn ghost" href="https://store.steampowered.com/app/5016130/" target="_blank" rel="noopener">Steam page</a>
       </div>
       <div class="shots">
@@ -179,7 +181,7 @@
       </div>
     </div>
 
-    <div class="game">
+    <div class="game" id="soulsmith">
       <span class="status">Coming soon on Steam</span>
       <h3 translate="no">Soulsmith</h3>
       <p class="tags">Story action RPG &middot; 2D &middot; Chapter-gated &middot; PC</p>
@@ -188,6 +190,7 @@
          story as much as the stats. The level cap holds until the chapter's boss falls —
          beat it or stay humble. Launching into Early Access with the opening chapters.</p>
       <div class="btns">
+        <a class="btn" href="/press/soulsmith-press-kit.zip" download>Soulsmith assets (506 KB)</a>
         <a class="btn ghost" href="https://store.steampowered.com/app/4614620/Soulsmith/" target="_blank" rel="noopener">Steam page</a>
       </div>
       <div class="shots">
@@ -209,7 +212,7 @@
       </div>
     </div>
 
-    <div class="game">
+    <div class="game" id="bonecount">
       <span class="status">In development</span>
       <h3 translate="no">Bonecount</h3>
       <p class="tags">Action roguelite &middot; Survivors-like &middot; Same world as Soulsmith &middot; PC</p>
@@ -217,6 +220,9 @@
          bosses fall, and every bone you take home is currency — the fallen become permanent
          power back at the hub. Classes, perks, relics and skills that stack into something
          unreasonable.</p>
+      <div class="btns">
+        <a class="btn" href="/press/bonecount-press-kit.zip" download>Bonecount assets (448 KB)</a>
+      </div>
       <div class="shots">
         <a class="shot" href="/press/images/bonecount-the-hub-class-podiums-around-the-fountain.jpg" download>
           <img src="/press/images/bonecount-the-hub-class-podiums-around-the-fountain.jpg" alt="Bonecount — the hub" loading="lazy">
