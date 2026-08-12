@@ -45,7 +45,8 @@
   h1 em{font-style:normal; color:var(--gold)}
   .lede{color:var(--ink-soft); font-size:clamp(15px,2.1vw,17.5px); max-width:60ch; margin:0}
 
-  section{padding:clamp(40px,6vw,60px) 0; border-bottom:1px solid var(--rule)}
+  section{padding:clamp(40px,6vw,60px) 0; border-bottom:1px solid var(--rule);
+           scroll-margin-top:60px}
   .eyebrow{font:500 12px/1 var(--body); letter-spacing:.24em; text-transform:uppercase;
            color:var(--gold-soft); margin:0 0 28px; display:flex; align-items:center; gap:14px}
   .eyebrow::after{content:""; flex:1; height:1px; background:var(--rule)}
@@ -135,6 +136,10 @@
         <b translate="no">Bonecount</b>
         <span>Survivors-like &middot; In development</span>
         <em>Assets &amp; screenshots &rsaquo;</em></a>
+      <a href="#studio">
+        <b translate="no">N1ghtmare Studios</b>
+        <span>The studio itself &middot; Sweden, 2025</span>
+        <em>Fact sheet, logos &amp; boilerplate &rsaquo;</em></a>
     </div>
   </div>
 </header>
@@ -153,9 +158,9 @@
   </div>
 </section>
 
-<section>
+<section id="studio">
   <div class="wrap">
-    <p class="eyebrow">Fact sheet</p>
+    <p class="eyebrow">The studio</p>
     <ul class="facts">
       <li><b>Studio</b><span translate="no">N1ghtmare Studios</span></li>
       <li><b>Founded</b><span>2025 &middot; Sweden</span></li>
@@ -172,6 +177,19 @@
       and sessions short enough to fit into a real life. No live-service treadmill,
       no pay-to-win — you buy the game, you own the game.
     </p>
+
+    <h2 style="margin-top:36px">Boilerplate</h2>
+    <p style="color:var(--ink-soft); font-size:14px; margin-bottom:12px">
+      Short version, free to paste at the end of an article.</p>
+    <blockquote id="boiler" style="margin:0; padding:16px 18px; background:var(--raised);
+      border:1px solid var(--rule); border-radius:10px; font-size:15px; max-width:66ch">
+      N1ghtmare Studios is a one-person independent game studio based in Sweden,
+      founded in 2025. It makes dark fantasy games with deep systems and short
+      sessions, including the auto-battler Warpack, the story action RPG Soulsmith
+      and the survivors-like Bonecount. More at n1ghtmarestudios.com.
+    </blockquote>
+    <div class="btns"><button id="copyBoiler" class="btn ghost"
+      style="font-family:inherit; cursor:pointer">Copy boilerplate</button></div>
   </div>
 </section>
 
@@ -271,7 +289,7 @@
   </div>
 </section>
 
-<section>
+<section id="branding">
   <div class="wrap">
     <p class="eyebrow">Branding</p>
     <div class="shots">
@@ -323,3 +341,26 @@
   <div class="wrap">&copy; 2026 <span translate="no">N1ghtmare Studios</span>.
     All trademarks are property of their respective owners.</div>
 </footer>
+
+<script>
+/* boilerplaten är till för att klistras in — gör det ett klick */
+(() => {
+  const btn = document.getElementById("copyBoiler");
+  const src = document.getElementById("boiler");
+  if (!btn || !src) return;
+  btn.onclick = async () => {
+    const text = src.textContent.trim().replace(/\s+/g, " ");
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = "Copied";
+    } catch (e) {
+      // utan urklippsrättighet: markera texten så den går att kopiera manuellt
+      const r = document.createRange();
+      r.selectNodeContents(src);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      btn.textContent = "Selected — copy it";
+    }
+    setTimeout(() => { btn.textContent = "Copy boilerplate"; }, 2200);
+  };
+})();
+</script>
