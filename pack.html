@@ -37,10 +37,20 @@
                font-variant-numeric:tabular-nums}
   .scorebar .l{color:var(--dim); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase}
 
+  .boardwrap{position:relative; margin-bottom:16px}
   #board{
-    display:grid; gap:4px; margin:0 auto 16px; width:100%;
+    display:grid; gap:4px; width:100%;
     aspect-ratio:1; touch-action:none;
   }
+  #fx{position:absolute; inset:0; pointer-events:none; overflow:hidden}
+  .pop{position:absolute; transform:translate(-50%,-50%);
+       font:700 20px/1 ui-sans-serif,system-ui,sans-serif; color:#ffd79a;
+       text-shadow:0 2px 10px rgba(0,0,0,.7); animation:rise 1s ease-out forwards}
+  @keyframes rise{ to{ transform:translate(-50%,-160%); opacity:0 } }
+  .flash{position:absolute; inset:-10px; border-radius:14px; pointer-events:none;
+         background:radial-gradient(circle at center, rgba(255,200,120,.30), rgba(255,160,60,0) 70%);
+         animation:fade .5s ease-out forwards}
+  @keyframes fade{ to{ opacity:0 } }
   .cell{
     background:#12101c; border:1px solid #1d1930; border-radius:6px;
     position:relative; display:flex; align-items:center; justify-content:center;
@@ -51,6 +61,8 @@
   .cell.ghostbad{background:rgba(255,90,80,.16); border-color:rgba(255,90,80,.5)}
   .cell.filled{border-color:transparent}
   .cell.clearing{animation:march .28s ease forwards}
+  .cell.boom{animation:boom .3s ease forwards; background:#ff8a3d !important}
+  @keyframes boom{ 0%{transform:scale(1.25)} to{ transform:scale(.15); opacity:0 } }
   @keyframes march{ to{ transform:scale(.2); opacity:0 } }
   .cell .tag{position:absolute; right:2px; bottom:1px; font:700 9px/1 inherit; opacity:.7}
 
@@ -122,14 +134,14 @@
 <div class="wrap">
   <h1>Back<b>pack</b></h1>
   <p class="day" id="dayLabel">Daily run</p>
-  <p class="day" style="margin:-12px 0 14px; opacity:.75">Drag a unit onto the pack &middot; tap it to turn it</p>
+  <p class="day" style="margin:-12px 0 14px; opacity:.75">Drag to place &middot; tap to turn</p>
 
   <div class="scorebar">
     <span class="n" id="score">0</span><span class="l">points</span>
     <span class="l" id="combo"></span>
   </div>
 
-  <div id="board"></div>
+  <div class="boardwrap"><div id="board"></div><div id="fx"></div></div>
   <div class="tray" id="tray"></div>
 
   <div class="row">
@@ -141,9 +153,10 @@
     <div><i style="background:#2a2540"></i><span><b>Fill a row or column</b> — it marches out. +10, and far more for several at once</span></div>
     <div><i style="background:var(--bone)"></i><span><b>Bones</b> — +2 per bone square it touches</span></div>
     <div><i style="background:var(--steel)"></i><span><b>Knight</b> — +3 per touching square of another kind</span></div>
-    <div><i style="background:var(--orc)"></i><span><b>Orc</b> — +4 when it reaches the edge</span></div>
+    <div><i style="background:var(--orc)"></i><span><b>Orc</b> — +4 when it reaches the edge, and it <b>detonates</b> when it marches out, taking its neighbours with it</span></div>
     <div><i style="background:var(--arch)"></i><span><b>Archer</b> — +6, but only with nothing touching it</span></div>
-    <div style="margin-top:10px"><i style="background:#2a2540"></i><span>Runs until nothing in the tray fits. Same pieces for everyone, all day.</span></div>
+    <div style="margin-top:10px"><i style="background:#2a2540"></i><span><b>Chain</b> — clear on consecutive turns and everything pays up to 4×</span></div>
+    <div><i style="background:#2a2540"></i><span>Runs until nothing in the tray fits. Same pieces for everyone, all day.</span></div>
   </div>
 </div>
 
@@ -343,25 +356,82 @@ function place(i, x, y){
 
   const { rows, cols } = fullLines();
   const lines = rows.length + cols.length;
-  if (lines){
-    combo++;
-    score += 10 * lines * lines * (combo > 1 ? 2 : 1);
-    // markera först, städa sedan — så man hinner se raden marschera ut
-    render();
-    for (const el of boardEl.children){
-      const cx = +el.dataset.x, cy = +el.dataset.y;
-      if (rows.includes(cy) || cols.includes(cx)) el.classList.add("clearing");
-    }
-    setTimeout(() => {
-      for (const y2 of rows) board[y2] = Array(N).fill(null);
-      for (const x2 of cols) for (let y2 = 0; y2 < N; y2++) board[y2][x2] = null;
-      afterMove();
-    }, 260);
-    return;
-  }
+  if (lines){ resolveClear(rows, cols, lines); return; }
   combo = 0;
   afterMove();
 }
+
+/* ── utmarsch ────────────────────────────────────────────────────────
+   Fulla rader och kolumner töms. Orcher som följer med detonerar och
+   river med sig rutorna omkring, så var man lagt sina orcher avgör hur
+   stor smällen blir. Varje sort betalar sitt när den marscherar ut.  */
+const CLEAR_PAY = { bone:2, steel:4, orc:5, arch:3 };
+
+function resolveClear(rows, cols, lines){
+  const gone = new Set(), boom = new Set();
+  for (const y of rows) for (let x = 0; x < N; x++) gone.add(x + "," + y);
+  for (const x of cols) for (let y = 0; y < N; y++) gone.add(x + "," + y);
+
+  // orcher i utmarschen spränger sina grannar
+  for (const key of [...gone]){
+    const [x, y] = key.split(",").map(Number);
+    if (board[y][x] !== "orc") continue;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx = x+dx, ny = y+dy;
+      if (nx<0||ny<0||nx>=N||ny>=N || !board[ny][nx]) continue;
+      const k = nx + "," + ny;
+      if (!gone.has(k)){ gone.add(k); boom.add(k); }
+    }
+  }
+
+  combo++;
+  const mult = Math.min(4, combo);
+  let pts = 10 * lines * lines;
+  for (const key of gone){
+    const [x, y] = key.split(",").map(Number);
+    pts += CLEAR_PAY[board[y][x]] || 0;
+  }
+  pts *= mult;
+  score += pts;
+
+  // visa smällen innan brädet städas
+  render();
+  let sx = 0, sy = 0;
+  for (const key of gone){
+    const [x, y] = key.split(",").map(Number);
+    sx += x; sy += y;
+    const el = boardEl.children[y * N + x];
+    el.classList.add(boom.has(key) ? "boom" : "clearing");
+  }
+  popup(sx / gone.size, sy / gone.size, "+" + pts + (mult > 1 ? "  " + mult + "×" : ""));
+  if (lines > 1 || boom.size) flash();
+
+  setTimeout(() => {
+    for (const key of gone){
+      const [x, y] = key.split(",").map(Number);
+      board[y][x] = null;
+    }
+    afterMove();
+  }, 300);
+}
+
+const fxEl = document.getElementById("fx");
+function popup(gx, gy, text){
+  const el = document.createElement("div");
+  el.className = "pop";
+  el.textContent = text;
+  el.style.left = ((gx + 0.5) / N * 100) + "%";
+  el.style.top  = ((gy + 0.5) / N * 100) + "%";
+  fxEl.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+function flash(){
+  const el = document.createElement("div");
+  el.className = "flash";
+  fxEl.appendChild(el);
+  setTimeout(() => el.remove(), 500);
+}
+
 function afterMove(){
   if (tray.every(p => !p)) refill();
   render();
