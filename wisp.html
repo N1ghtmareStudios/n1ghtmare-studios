@@ -1,0 +1,460 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07060b">
+<meta name="description" content="Wisp — a free one-button game from N1ghtmare Studios. Fly the soul between the bone spires and take the leaderboard.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Wisp — N1ghtmare Studios</title>
+<style>
+  :root{
+    --void:#07060b; --chrome:#0f0d16; --edge:#241f33;
+    --ink:#d9d3e6; --dim:#7b7391; --glow:#e0a154; --ice:#9fd4ec;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--void); color:var(--ink); overflow:hidden;
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  canvas{display:block; touch-action:none}
+
+  .panel{
+    position:fixed; inset:0; display:none; z-index:5;
+    align-items:center; justify-content:center; padding:24px;
+    background:radial-gradient(120% 90% at 50% 40%, rgba(7,6,11,.55), rgba(7,6,11,.94));
+    backdrop-filter:blur(3px);
+  }
+  .panel.on{display:flex}
+  .card{
+    width:min(420px,100%); background:color-mix(in srgb, var(--chrome) 94%, transparent);
+    border:1px solid var(--edge); border-radius:16px; padding:22px 20px 20px;
+    text-align:center;
+  }
+  h1{font:400 30px/1.1 "Iowan Old Style",Palatino,Georgia,serif;
+     letter-spacing:.16em; text-transform:uppercase; margin:0 0 4px}
+  h1 b{color:var(--glow); font-weight:400}
+  .sub{color:var(--dim); font-size:12.5px; letter-spacing:.12em;
+       text-transform:uppercase; margin:0 0 18px}
+  .score{font:700 46px/1 ui-sans-serif,system-ui,sans-serif; margin:2px 0 2px;
+         font-variant-numeric:tabular-nums}
+  .best{color:var(--dim); font-size:13px; letter-spacing:.1em;
+        text-transform:uppercase; margin-bottom:16px}
+  .new{color:var(--glow)}
+
+  button, .btn{
+    appearance:none; background:none; border:1px solid var(--edge); color:var(--ink);
+    border-radius:10px; padding:14px 18px; font:600 13px/1 inherit;
+    letter-spacing:.12em; text-transform:uppercase; cursor:pointer; min-height:48px;
+    display:inline-flex; align-items:center; justify-content:center; text-decoration:none;
+  }
+  button.primary{background:var(--glow); border-color:var(--glow); color:#150f04; font-weight:700}
+  .row{display:flex; gap:9px; margin-top:6px}
+  .row > *{flex:1}
+
+  input{
+    width:100%; background:#171426; border:1px solid var(--edge); color:var(--ink);
+    border-radius:10px; padding:13px 14px; font:600 16px/1 inherit;
+    letter-spacing:.08em; outline:none; margin-bottom:9px; text-align:center;
+  }
+  input:focus{border-color:var(--glow)}
+
+  .board{margin:16px 0 4px; text-align:left}
+  .board h2{font:600 11px/1 inherit; letter-spacing:.2em; text-transform:uppercase;
+            color:var(--glow); margin:0 0 10px; display:flex; align-items:center; gap:10px}
+  .board h2::after{content:""; flex:1; height:1px; background:var(--edge)}
+  .board ol{list-style:none; margin:0; padding:0; font-variant-numeric:tabular-nums}
+  .board li{display:flex; gap:10px; padding:6px 0; font-size:13.5px;
+            border-bottom:1px solid rgba(36,31,51,.6)}
+  .board li span:first-child{color:var(--dim); width:22px}
+  .board li span:nth-child(2){flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .board li.me{color:var(--glow)}
+  .board .note{color:var(--dim); font-size:12px; letter-spacing:.04em}
+
+  .back{position:fixed; top:calc(env(safe-area-inset-top,0px) + 12px); left:12px; z-index:6;
+        color:var(--dim); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+        text-decoration:none; padding:10px 12px}
+  .back:hover{color:var(--glow)}
+</style>
+
+<canvas id="c"></canvas>
+<a class="back" href="/#games">&lsaquo; N1ghtmare Studios</a>
+
+<div class="panel on" id="startPanel">
+  <div class="card">
+    <h1>W<b>i</b>sp</h1>
+    <p class="sub">One button &middot; Free &middot; No install</p>
+    <p style="color:var(--dim); font-size:13.5px; margin:0 0 18px">
+      Tap to lift the soul. Thread the bone spires. Fall once and it is over.
+    </p>
+    <button class="primary" id="startBtn" style="width:100%">Play</button>
+    <div class="board" id="startBoard"></div>
+  </div>
+</div>
+
+<div class="panel" id="overPanel">
+  <div class="card">
+    <p class="sub" style="margin-bottom:6px" id="overTitle">The soul scattered</p>
+    <div class="score" id="finalScore">0</div>
+    <div class="best" id="finalBest">Best 0</div>
+
+    <div id="submitWrap" style="display:none">
+      <input id="nameInput" maxlength="12" placeholder="YOUR NAME" autocomplete="off"
+             autocapitalize="characters" spellcheck="false">
+      <button class="primary" id="submitBtn" style="width:100%">Submit score</button>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="againBtn">Play again</button>
+      <a class="btn" href="/#games">Back</a>
+    </div>
+    <div class="board" id="overBoard"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ── topplista ───────────────────────────────────────────────────────
+   Sätt API till en endpoint som svarar:
+     GET  <API>/top          -> [{name, score}, ...] (sorterad, topp 20)
+     POST <API>/score        -> {name, score}
+   Är den tom körs spelet med lokalt rekord och listan döljs.        */
+const API = "";
+const LS_BEST = "wisp_best", LS_NAME = "wisp_name";
+
+/* ── canvas och logisk spelplan ──────────────────────────────────────
+   Allt räknas i 360×640 logiska punkter och skalas till skärmen, så
+   svårighetsgraden blir densamma på mobil som på desktop.           */
+const VW = 360, VH = 640;
+const cvs = document.getElementById("c"), ctx = cvs.getContext("2d");
+let scale = 1, offX = 0, offY = 0, cssW = 0, cssH = 0;
+
+function resize(){
+  cssW = innerWidth; cssH = innerHeight;
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cvs.width = Math.round(cssW * dpr);
+  cvs.height = Math.round(cssH * dpr);
+  cvs.style.width = cssW + "px";
+  cvs.style.height = cssH + "px";
+  scale = Math.min(cssW / VW, cssH / VH);
+  offX = (cssW - VW * scale) / 2;
+  offY = (cssH - VH * scale) / 2;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener("resize", resize);
+resize();
+
+/* ── värld ───────────────────────────────────────────────────────── */
+const GRAV = 1180, FLAP = -382, SPEED0 = 132, GROUND = 74;
+const GAP0 = 168, GAP_MIN = 124, PILLAR_W = 58, SPACING = 205;
+
+let state = "menu";            // menu | play | dead
+let wispY, wispV, wispA, dist, speed, gap, score, best, spires, sparks, shake, tPrev, spawnX;
+
+try { best = (+localStorage.getItem(LS_BEST)) || 0; } catch(e){ best = 0; }
+
+function reset(){
+  wispY = VH * 0.42; wispV = -230; wispA = 0;   // liten startlyft
+  dist = 0; speed = SPEED0; gap = GAP0; score = 0;
+  spires = []; sparks = []; shake = 0; spawnX = VW + 60;
+  for (let i = 0; i < 4; i++) addSpire(VW + 120 + i * SPACING);
+}
+function addSpire(x){
+  const margin = 70;
+  const top = margin + Math.random() * (VH - GROUND - gap - margin * 2);
+  spires.push({ x, top, gap, passed: false, seed: Math.random() * 100 });
+}
+function flap(){
+  if (state === "play"){
+    wispV = FLAP;
+    for (let i = 0; i < 6; i++) puff(110, wispY, 1);
+  }
+}
+function puff(x, y, k){
+  sparks.push({ x, y, vx: (Math.random() - 0.5) * 60 * k, vy: 40 + Math.random() * 90 * k,
+                r: 1 + Math.random() * 2.2, life: 0.5 + Math.random() * 0.5, age: 0 });
+}
+function die(){
+  if (state !== "play") return;
+  state = "dead"; shake = 1;
+  for (let i = 0; i < 46; i++)
+    sparks.push({ x: 110, y: wispY, vx: (Math.random() - 0.5) * 420,
+                  vy: (Math.random() - 0.5) * 420, r: 1 + Math.random() * 2.6,
+                  life: 0.7 + Math.random() * 0.7, age: 0 });
+  const isNew = score > best;
+  if (isNew){ best = score; try { localStorage.setItem(LS_BEST, best); } catch(e){} }
+  showOver(isNew);
+}
+
+/* ── uppdatering ─────────────────────────────────────────────────── */
+function update(dt){
+  for (let i = sparks.length - 1; i >= 0; i--){
+    const s = sparks[i];
+    s.age += dt;
+    if (s.age > s.life){ sparks.splice(i, 1); continue; }
+    s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 240 * dt;
+    if (state === "play") s.x -= speed * dt;
+  }
+  if (shake > 0) shake = Math.max(0, shake - dt * 2.6);
+  if (state !== "play") return;
+
+  speed = SPEED0 + Math.min(58, score * 2.1);
+  gap = Math.max(GAP_MIN, GAP0 - score * 1.6);
+
+  wispV += GRAV * dt;
+  wispY += wispV * dt;
+  wispA = Math.max(-0.5, Math.min(1.15, wispV / 620));
+  dist += speed * dt;
+
+  if (Math.random() < dt * 14) puff(104, wispY + 2, 0.35);
+
+  for (const s of spires) s.x -= speed * dt;
+  while (spires.length && spires[0].x + PILLAR_W < -30) spires.shift();
+  const lastX = spires.length ? spires[spires.length - 1].x : 0;
+  if (lastX < VW + SPACING) addSpire(lastX + SPACING);
+
+  // poäng och krock
+  for (const s of spires){
+    if (!s.passed && s.x + PILLAR_W < 110 - 11){
+      s.passed = true; score++;
+      for (let i = 0; i < 5; i++) puff(110, wispY, 0.6);
+    }
+    if (110 + 11 > s.x && 110 - 11 < s.x + PILLAR_W &&
+        (wispY - 11 < s.top || wispY + 11 > s.top + s.gap)) die();
+  }
+  if (wispY + 11 > VH - GROUND){ wispY = VH - GROUND - 11; die(); }
+  if (wispY - 11 < 0){ wispY = 11; wispV = 0; }
+}
+
+/* ── ritning ─────────────────────────────────────────────────────── */
+function bgLayer(t){
+  // avlägsna spiror i två parallaxlager
+  for (let layer = 0; layer < 2; layer++){
+    const k = layer === 0 ? 0.18 : 0.34;
+    const h = layer === 0 ? 120 : 84;
+    const w = layer === 0 ? 66 : 44;
+    ctx.fillStyle = layer === 0 ? "rgba(22,26,42,.85)" : "rgba(15,18,32,.9)";
+    const off = (dist * k) % (w * 2.4);
+    for (let x = -off - w; x < VW + w; x += w * 2.4){
+      const hh = h * (0.72 + 0.5 * Math.abs(Math.sin(x * 0.021 + layer * 2.3)));
+      ctx.beginPath();
+      ctx.moveTo(x, VH - GROUND);
+      ctx.lineTo(x + w * 0.5, VH - GROUND - hh);
+      ctx.lineTo(x + w, VH - GROUND);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+}
+function spire(s){
+  const x = s.x, top = s.top, bot = top + s.gap;
+  const grd = ctx.createLinearGradient(x, 0, x + PILLAR_W, 0);
+  grd.addColorStop(0,   "#181426");
+  grd.addColorStop(0.5, "#2b2440");
+  grd.addColorStop(1,   "#141021");
+  ctx.fillStyle = grd;
+  ctx.fillRect(x, -40, PILLAR_W, top + 40);
+  ctx.fillRect(x, bot, PILLAR_W, VH - bot);
+  // glödande kanter mot gapet
+  ctx.fillStyle = "rgba(224,161,84,.5)";
+  ctx.fillRect(x - 3, top - 7, PILLAR_W + 6, 7);
+  ctx.fillRect(x - 3, bot, PILLAR_W + 6, 7);
+  ctx.fillStyle = "rgba(159,212,236,.14)";
+  ctx.fillRect(x - 3, top - 9, PILLAR_W + 6, 2);
+  ctx.fillRect(x - 3, bot + 7, PILLAR_W + 6, 2);
+}
+function draw(t){
+  ctx.save();
+  ctx.clearRect(0, 0, cssW, cssH);
+  // bakgrund utanför spelplanen
+  ctx.fillStyle = "#07060b"; ctx.fillRect(0, 0, cssW, cssH);
+  ctx.translate(offX + (shake ? (Math.random() - 0.5) * 10 * shake : 0),
+                offY + (shake ? (Math.random() - 0.5) * 10 * shake : 0));
+  ctx.scale(scale, scale);
+  ctx.beginPath(); ctx.rect(0, 0, VW, VH); ctx.clip();
+
+  const sky = ctx.createLinearGradient(0, 0, 0, VH);
+  sky.addColorStop(0,   "#0a0d18");
+  sky.addColorStop(0.55, "#0d1020");
+  sky.addColorStop(1,   "#141024");
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+
+  bgLayer(t);
+  for (const s of spires) spire(s);
+
+  // mark
+  const gg = ctx.createLinearGradient(0, VH - GROUND, 0, VH);
+  gg.addColorStop(0, "#1b1730"); gg.addColorStop(1, "#0b0912");
+  ctx.fillStyle = gg; ctx.fillRect(0, VH - GROUND, VW, GROUND);
+  ctx.fillStyle = "rgba(224,161,84,.22)";
+  ctx.fillRect(0, VH - GROUND, VW, 1.5);
+  // dimma över marken
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 4; i++){
+    const fx = ((i * 130 - dist * 0.32) % (VW + 260)) - 130;
+    const fg = ctx.createRadialGradient(fx, VH - GROUND + 6, 0, fx, VH - GROUND + 6, 130);
+    fg.addColorStop(0, "rgba(140,162,200,.055)");
+    fg.addColorStop(1, "rgba(140,162,200,0)");
+    ctx.fillStyle = fg;
+    ctx.beginPath(); ctx.ellipse(fx, VH - GROUND + 6, 130, 34, 0, 0, 6.2832); ctx.fill();
+  }
+
+  // gnistor
+  for (const s of sparks){
+    const a = (1 - s.age / s.life) * 0.75;
+    const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 4);
+    g.addColorStop(0, "rgba(255,214,150," + a + ")");
+    g.addColorStop(1, "rgba(224,161,84,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 4, 0, 6.2832); ctx.fill();
+  }
+
+  // själen
+  if (state !== "dead"){
+    const y = wispY, pulse = 0.85 + 0.15 * Math.sin(t / 190);
+    const halo = ctx.createRadialGradient(110, y, 0, 110, y, 34 * pulse);
+    halo.addColorStop(0,   "rgba(255,226,170,.55)");
+    halo.addColorStop(0.35,"rgba(224,161,84,.22)");
+    halo.addColorStop(1,   "rgba(224,161,84,0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(110, y, 34 * pulse, 0, 6.2832); ctx.fill();
+    ctx.save();
+    ctx.translate(110, y); ctx.rotate(wispA * 0.5);
+    ctx.fillStyle = "#fff4e0";
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 9.5, 0, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = "rgba(159,212,236,.85)";
+    ctx.beginPath(); ctx.ellipse(-3, -2.5, 4, 3.2, 0, 0, 6.2832); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  // poäng
+  if (state === "play"){
+    ctx.font = "700 44px ui-sans-serif,system-ui,sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(0,0,0,.45)";
+    ctx.fillText(score, VW / 2 + 2, 74 + 2);
+    ctx.fillStyle = "#f0e6d4";
+    ctx.fillText(score, VW / 2, 74);
+  }
+  ctx.restore();
+}
+
+/* ── slinga ──────────────────────────────────────────────────────── */
+function loop(t){
+  requestAnimationFrame(loop);
+  if (tPrev === undefined) tPrev = t;
+  const dt = Math.min(0.033, (t - tPrev) / 1000);
+  tPrev = t;
+  update(dt); draw(t);
+}
+reset();
+requestAnimationFrame(loop);
+
+/* liten dev-krok för autotest: #debug i adressen */
+if (location.hash === "#debug"){
+  window.__wisp = {
+    get score(){ return score; }, get y(){ return wispY; },
+    get state(){ return state; }, get spires(){ return spires; },
+    get gap(){ return gap; }, flap
+  };
+}
+
+/* ── styrning ────────────────────────────────────────────────────── */
+function press(e){
+  if (e.target.closest(".panel") || e.target.closest(".back")) return;
+  e.preventDefault(); flap();
+}
+addEventListener("pointerdown", press, { passive:false });
+addEventListener("keydown", e => {
+  if (e.code === "Space" || e.code === "ArrowUp"){
+    e.preventDefault();
+    if (state === "play") flap();
+    else if (document.getElementById("overPanel").classList.contains("on")) startGame();
+    else if (document.getElementById("startPanel").classList.contains("on")) startGame();
+  }
+});
+
+/* ── UI ──────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+function startGame(){
+  reset(); state = "play";
+  $("startPanel").classList.remove("on");
+  $("overPanel").classList.remove("on");
+}
+$("startBtn").onclick = startGame;
+$("againBtn").onclick = startGame;
+
+function showOver(isNew){
+  $("finalScore").textContent = score;
+  $("finalBest").innerHTML = isNew
+    ? '<span class="new">New best!</span>'
+    : "Best " + best;
+  $("overTitle").textContent = score >= 20 ? "A long flight" :
+                               score >= 8  ? "The soul scattered" : "Snuffed out";
+  const wrap = $("submitWrap");
+  wrap.style.display = (API && score > 0) ? "block" : "none";
+  if (API && score > 0){
+    try { $("nameInput").value = localStorage.getItem(LS_NAME) || ""; } catch(e){}
+    $("submitBtn").disabled = false;
+    $("submitBtn").textContent = "Submit score";
+  }
+  $("overPanel").classList.add("on");
+  loadBoard("overBoard");
+}
+
+/* ── topplista ───────────────────────────────────────────────────── */
+let myEntry = null;
+function boardHTML(rows){
+  if (!rows.length) return '<p class="note">No scores yet — be the first.</p>';
+  return "<ol>" + rows.map((r, i) =>
+    '<li class="' + (myEntry && r.name === myEntry.name && r.score === myEntry.score ? "me" : "") + '">' +
+    "<span>" + (i + 1) + "</span><span>" + esc(r.name) + "</span><span>" + r.score + "</span></li>"
+  ).join("") + "</ol>";
+}
+function esc(s){ return String(s).replace(/[<>&"]/g, c =>
+  ({ "<":"&lt;", ">":"&gt;", "&":"&amp;", '"':"&quot;" }[c])); }
+
+async function loadBoard(id){
+  const el = $(id);
+  if (!API){
+    el.innerHTML = '<h2>Best</h2><p class="note">Your best: ' + best +
+                   '. A shared leaderboard is coming.</p>';
+    return;
+  }
+  el.innerHTML = '<h2>Leaderboard</h2><p class="note">Loading…</p>';
+  try {
+    const r = await fetch(API + "/top", { cache: "no-store" });
+    const rows = await r.json();
+    el.innerHTML = "<h2>Leaderboard</h2>" + boardHTML(rows.slice(0, 10));
+  } catch(e){
+    el.innerHTML = '<h2>Leaderboard</h2><p class="note">Offline — your best: ' + best + "</p>";
+  }
+}
+
+$("submitBtn").onclick = async () => {
+  const name = ($("nameInput").value || "").trim().slice(0, 12);
+  if (!name){ $("nameInput").focus(); return; }
+  try { localStorage.setItem(LS_NAME, name); } catch(e){}
+  const btn = $("submitBtn");
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    await fetch(API + "/score", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, score })
+    });
+    myEntry = { name, score };
+    btn.textContent = "Submitted";
+    $("submitWrap").style.display = "none";
+    loadBoard("overBoard");
+  } catch(e){
+    btn.disabled = false; btn.textContent = "Try again";
+  }
+};
+
+loadBoard("startBoard");
+})();
+</script>
