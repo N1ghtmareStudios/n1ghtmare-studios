@@ -124,6 +124,7 @@
      POST <API>/score        -> {name, score}
    Är den tom körs spelet med lokalt rekord och listan döljs.        */
 const API = "";
+const GAME = "wisp";
 const LS_BEST = "wisp_best", LS_NAME = "wisp_name";
 
 /* ── canvas och logisk spelplan ──────────────────────────────────────
@@ -427,7 +428,7 @@ async function loadBoard(id){
   }
   el.innerHTML = '<h2>Leaderboard</h2><p class="note">Loading…</p>';
   try {
-    const r = await fetch(API + "/top", { cache: "no-store" });
+    const r = await fetch(API + "/top?game=" + GAME, { cache: "no-store" });
     const rows = await r.json();
     el.innerHTML = "<h2>Leaderboard</h2>" + boardHTML(rows.slice(0, 10));
   } catch(e){
@@ -442,7 +443,7 @@ $("submitBtn").onclick = async () => {
   const btn = $("submitBtn");
   btn.disabled = true; btn.textContent = "Sending…";
   try {
-    await fetch(API + "/score", {
+    await fetch(API + "/score?game=" + GAME, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ name, score })
     });

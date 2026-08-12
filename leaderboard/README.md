@@ -34,14 +34,18 @@ this many times over.
    const API = "https://wisp-scores.<your-subdomain>.workers.dev";
    ```
 
-   The board and the submit field appear automatically once this is set; with
-   an empty string the game just tracks a local best.
+   ...and the same line in `forge.html`. The board and submit field appear
+   automatically once set; with an empty string the games just track a local
+   best.
+
+   All free games share this one Worker — `?game=` keeps the boards apart, so
+   adding a game means adding its id to `GAMES` in `worker.js`.
 
 ## Check it works
 
 ```
-curl https://wisp-scores.<sub>.workers.dev/top
-curl -X POST https://wisp-scores.<sub>.workers.dev/score \
+curl 'https://wisp-scores.<sub>.workers.dev/top?game=wisp'
+curl -X POST 'https://wisp-scores.<sub>.workers.dev/score?game=forge' \
      -H 'content-type: application/json' \
      -d '{"name":"TEST","score":7}'
 ```
@@ -52,4 +56,4 @@ curl -X POST https://wisp-scores.<sub>.workers.dev/score \
 - Scores are unauthenticated. Range checks, a 20/hour per-IP limit and the
   one-row-per-name rule keep casual junk out, but anyone determined can post a
   fake number. Fine for a visitor board — don't hang anything important on it.
-- To wipe the board: KV → `wisp-scores` → delete the `top` key.
+- To wipe a board: KV → `wisp-scores` → delete the `top:<game>` key.

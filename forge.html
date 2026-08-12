@@ -1,0 +1,483 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07060b">
+<meta name="description" content="Forge — a free timing game from N1ghtmare Studios. Strike the hot steel on the beat and see what blade you end up with.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Forge — N1ghtmare Studios</title>
+<style>
+  :root{
+    --void:#07060b; --chrome:#0f0d16; --edge:#241f33;
+    --ink:#d9d3e6; --dim:#7b7391; --glow:#e0a154;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--void); color:var(--ink); overflow:hidden;
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  canvas{display:block; touch-action:none}
+
+  .panel{
+    position:fixed; inset:0; display:none; z-index:5;
+    align-items:center; justify-content:center; padding:24px;
+    background:radial-gradient(120% 90% at 50% 40%, rgba(7,6,11,.55), rgba(7,6,11,.94));
+    backdrop-filter:blur(3px);
+  }
+  .panel.on{display:flex}
+  .card{
+    width:min(420px,100%); background:color-mix(in srgb, var(--chrome) 94%, transparent);
+    border:1px solid var(--edge); border-radius:16px; padding:22px 20px 20px;
+    text-align:center;
+  }
+  h1{font:400 30px/1.1 "Iowan Old Style",Palatino,Georgia,serif;
+     letter-spacing:.16em; text-transform:uppercase; margin:0 0 4px}
+  h1 b{color:var(--glow); font-weight:400}
+  .sub{color:var(--dim); font-size:12.5px; letter-spacing:.12em;
+       text-transform:uppercase; margin:0 0 18px}
+  .score{font:700 46px/1 ui-sans-serif,system-ui,sans-serif; margin:2px 0 2px;
+         font-variant-numeric:tabular-nums}
+  .best{color:var(--dim); font-size:13px; letter-spacing:.1em;
+        text-transform:uppercase; margin-bottom:16px}
+  .new{color:var(--glow)}
+  .grade{font:400 20px/1.2 "Iowan Old Style",Palatino,Georgia,serif;
+         letter-spacing:.14em; text-transform:uppercase; color:var(--glow); margin:0 0 12px}
+
+  button, .btn{
+    appearance:none; background:none; border:1px solid var(--edge); color:var(--ink);
+    border-radius:10px; padding:14px 18px; font:600 13px/1 inherit;
+    letter-spacing:.12em; text-transform:uppercase; cursor:pointer; min-height:48px;
+    display:inline-flex; align-items:center; justify-content:center; text-decoration:none;
+  }
+  button.primary{background:var(--glow); border-color:var(--glow); color:#150f04; font-weight:700}
+  .row{display:flex; gap:9px; margin-top:6px}
+  .row > *{flex:1}
+
+  input{
+    width:100%; background:#171426; border:1px solid var(--edge); color:var(--ink);
+    border-radius:10px; padding:13px 14px; font:600 16px/1 inherit;
+    letter-spacing:.08em; outline:none; margin-bottom:9px; text-align:center;
+  }
+  input:focus{border-color:var(--glow)}
+
+  .board{margin:16px 0 4px; text-align:left}
+  .board h2{font:600 11px/1 inherit; letter-spacing:.2em; text-transform:uppercase;
+            color:var(--glow); margin:0 0 10px; display:flex; align-items:center; gap:10px}
+  .board h2::after{content:""; flex:1; height:1px; background:var(--edge)}
+  .board ol{list-style:none; margin:0; padding:0; font-variant-numeric:tabular-nums}
+  .board li{display:flex; gap:10px; padding:6px 0; font-size:13.5px;
+            border-bottom:1px solid rgba(36,31,51,.6)}
+  .board li span:first-child{color:var(--dim); width:22px}
+  .board li span:nth-child(2){flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .board li.me{color:var(--glow)}
+  .board .note{color:var(--dim); font-size:12px; letter-spacing:.04em}
+
+  .back{position:fixed; top:calc(env(safe-area-inset-top,0px) + 12px); left:12px; z-index:6;
+        color:var(--dim); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+        text-decoration:none; padding:10px 12px}
+  .back:hover{color:var(--glow)}
+</style>
+
+<canvas id="c"></canvas>
+<a class="back" href="/#games">&lsaquo; N1ghtmare Studios</a>
+
+<div class="panel on" id="startPanel">
+  <div class="card">
+    <h1>F<b>o</b>rge</h1>
+    <p class="sub">One button &middot; Free &middot; No install</p>
+    <p style="color:var(--dim); font-size:13.5px; margin:0 0 18px">
+      The hammer falls where you tell it. Strike inside the hot band —
+      the closer to its heart, the truer the steel. Three ruined blows
+      and the blade cracks for good.
+    </p>
+    <button class="primary" id="startBtn" style="width:100%">Start forging</button>
+    <div class="board" id="startBoard"></div>
+  </div>
+</div>
+
+<div class="panel" id="overPanel">
+  <div class="card">
+    <p class="sub" style="margin-bottom:6px">The blade cracked</p>
+    <div class="score" id="finalScore">0</div>
+    <p class="grade" id="finalGrade">Scrap</p>
+    <div class="best" id="finalBest">Best 0</div>
+
+    <div id="submitWrap" style="display:none">
+      <input id="nameInput" maxlength="12" placeholder="YOUR NAME" autocomplete="off"
+             autocapitalize="characters" spellcheck="false">
+      <button class="primary" id="submitBtn" style="width:100%">Submit score</button>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="againBtn">Forge again</button>
+      <a class="btn" href="/#games">Back</a>
+    </div>
+    <div class="board" id="overBoard"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* Delad topplista med de andra gratisspelen — samma Worker, olika game-id.
+   Tom sträng = spelet kör med lokalt rekord och listan döljs.          */
+const API = "";
+const GAME = "forge";
+const LS_BEST = "forge_best", LS_NAME = "wisp_name";
+
+/* 360×640 logiska punkter skalas till skärmen: samma svårighet överallt */
+const VW = 360, VH = 640;
+const cvs = document.getElementById("c"), ctx = cvs.getContext("2d");
+let scale = 1, offX = 0, offY = 0, cssW = 0, cssH = 0;
+
+function resize(){
+  cssW = innerWidth; cssH = innerHeight;
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cvs.width = Math.round(cssW * dpr); cvs.height = Math.round(cssH * dpr);
+  cvs.style.width = cssW + "px"; cvs.style.height = cssH + "px";
+  scale = Math.min(cssW / VW, cssH / VH);
+  offX = (cssW - VW * scale) / 2; offY = (cssH - VH * scale) / 2;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener("resize", resize);
+resize();
+
+/* ── tillstånd ───────────────────────────────────────────────────── */
+const BAR_X = 40, BAR_W = VW - 80, BAR_Y = 500, BAR_H = 26;
+const MAX_CRACKS = 3;
+
+let state = "menu";
+let pos, dir, spd, zoneC, zoneW, hits, perfects, combo, bestCombo, cracks, score, best;
+let sparks, shake, flash, hammer, heat, tPrev;
+
+try { best = (+localStorage.getItem(LS_BEST)) || 0; } catch(e){ best = 0; }
+
+function reset(){
+  pos = 0; dir = 1; spd = 0.58;
+  zoneC = 0.5; zoneW = 0.155;
+  hits = 0; perfects = 0; combo = 0; bestCombo = 0; cracks = 0; score = 0;
+  sparks = []; shake = 0; flash = 0; hammer = 0; heat = 1;
+}
+function tune(){
+  spd   = 0.58 + Math.min(1.10, hits * 0.036);
+  zoneW = Math.max(0.048, 0.155 - hits * 0.0052);
+}
+function newZone(){
+  const m = zoneW + 0.06;
+  let c;
+  do { c = m + Math.random() * (1 - m * 2); } while (Math.abs(c - zoneC) < 0.22);
+  zoneC = c;
+}
+function burst(n, x, y, power){
+  for (let i = 0; i < n; i++)
+    sparks.push({ x, y, vx: (Math.random() - 0.5) * 340 * power,
+                  vy: -Math.random() * 300 * power - 40,
+                  r: 1 + Math.random() * 2.4, life: .45 + Math.random() * .6, age: 0 });
+}
+
+function strike(){
+  if (state !== "play") return;
+  hammer = 1;
+  const d = Math.abs(pos - zoneC);
+  const hx = BAR_X + pos * BAR_W;
+
+  if (d <= zoneW){
+    const perfect = d <= zoneW * 0.34;
+    hits++; combo++;
+    bestCombo = Math.max(bestCombo, combo);
+    if (perfect){
+      perfects++;
+      score += 3 + Math.floor(combo / 4);
+      flash = 1; heat = Math.min(1, heat + 0.16);
+      burst(26, hx, BAR_Y + BAR_H / 2, 1.25);
+    } else {
+      score += 1 + Math.floor(combo / 8);
+      heat = Math.min(1, heat + 0.08);
+      burst(13, hx, BAR_Y + BAR_H / 2, 0.8);
+    }
+    shake = perfect ? 0.85 : 0.42;
+    tune(); newZone();
+  } else {
+    combo = 0; cracks++; shake = 1; heat = Math.max(0, heat - 0.3);
+    burst(8, hx, BAR_Y + BAR_H / 2, 0.5);
+    if (cracks >= MAX_CRACKS) end();
+  }
+}
+function end(){
+  state = "dead";
+  const isNew = score > best;
+  if (isNew){ best = score; try { localStorage.setItem(LS_BEST, best); } catch(e){} }
+  showOver(isNew);
+}
+function grade(){
+  if (score >= 140) return "Relic";
+  if (score >= 90)  return "Masterwork";
+  if (score >= 55)  return "Fine blade";
+  if (score >= 28)  return "Serviceable";
+  if (score >= 10)  return "Rough iron";
+  return "Scrap";
+}
+
+/* ── uppdatering ─────────────────────────────────────────────────── */
+function update(dt){
+  for (let i = sparks.length - 1; i >= 0; i--){
+    const s = sparks[i]; s.age += dt;
+    if (s.age > s.life){ sparks.splice(i, 1); continue; }
+    s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 620 * dt;
+  }
+  if (shake  > 0) shake  = Math.max(0, shake  - dt * 3.0);
+  if (flash  > 0) flash  = Math.max(0, flash  - dt * 3.4);
+  if (hammer > 0) hammer = Math.max(0, hammer - dt * 5.2);
+  if (state !== "play") return;
+
+  heat = Math.max(0, heat - dt * 0.055);          // järnet svalnar sakta
+  pos += dir * spd * dt;
+  if (pos >= 1){ pos = 1; dir = -1; }
+  if (pos <= 0){ pos = 0; dir = 1; }
+}
+
+/* ── ritning ─────────────────────────────────────────────────────── */
+function drawBlade(){
+  // klingan växer och renas med varje träff
+  const grow = Math.min(1, hits / 26);
+  const len = 90 + grow * 150, w = 13 + grow * 7;
+  const cx = VW / 2, tipY = 300 - len * 0.5, baseY = 300 + len * 0.5;
+  const glow = 0.25 + heat * 0.65;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createLinearGradient(cx, tipY, cx, baseY);
+  g.addColorStop(0,   "rgba(255,244,224," + (0.20 * glow) + ")");
+  g.addColorStop(0.5, "rgba(255,190,110," + (0.55 * glow) + ")");
+  g.addColorStop(1,   "rgba(255,120,50,"  + (0.75 * glow) + ")");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(cx, tipY);
+  ctx.lineTo(cx + w, tipY + len * 0.28);
+  ctx.lineTo(cx + w * 0.72, baseY);
+  ctx.lineTo(cx - w * 0.72, baseY);
+  ctx.lineTo(cx - w, tipY + len * 0.28);
+  ctx.closePath(); ctx.fill();
+  ctx.globalCompositeOperation = "source-over";
+
+  // sprickor
+  ctx.strokeStyle = "rgba(30,8,8,.85)"; ctx.lineWidth = 2;
+  for (let i = 0; i < cracks; i++){
+    const y = tipY + len * (0.3 + i * 0.22);
+    ctx.beginPath();
+    ctx.moveTo(cx - w * 0.8, y);
+    ctx.lineTo(cx + w * 0.3, y + 9);
+    ctx.lineTo(cx + w * 0.8, y + 3);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawAnvil(){
+  ctx.fillStyle = "#191527";
+  ctx.beginPath();
+  ctx.moveTo(VW/2 - 84, 402); ctx.lineTo(VW/2 + 84, 402);
+  ctx.lineTo(VW/2 + 58, 424); ctx.lineTo(VW/2 + 30, 424);
+  ctx.lineTo(VW/2 + 30, 462); ctx.lineTo(VW/2 - 30, 462);
+  ctx.lineTo(VW/2 - 30, 424); ctx.lineTo(VW/2 - 58, 424);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(224,161,84,.28)";
+  ctx.fillRect(VW/2 - 84, 400, 168, 2);
+}
+function drawHammer(){
+  const swing = hammer * hammer;
+  const y = 250 - swing * 96;
+  const rot = -0.5 + swing * 0.9;
+  ctx.save();
+  ctx.translate(VW/2 + 96, y); ctx.rotate(rot);
+  ctx.fillStyle = "#241f33"; ctx.fillRect(-4, 0, 8, 74);       // skaft
+  ctx.fillStyle = "#3a3350"; ctx.fillRect(-24, -16, 48, 26);   // huvud
+  ctx.fillStyle = "rgba(224,161,84,.35)"; ctx.fillRect(-24, -16, 48, 2);
+  ctx.restore();
+}
+function drawBar(){
+  ctx.fillStyle = "#141021";
+  ctx.fillRect(BAR_X, BAR_Y, BAR_W, BAR_H);
+  ctx.strokeStyle = "#241f33"; ctx.lineWidth = 1;
+  ctx.strokeRect(BAR_X + .5, BAR_Y + .5, BAR_W - 1, BAR_H - 1);
+
+  // heta bandet
+  const zx = BAR_X + (zoneC - zoneW) * BAR_W, zw = zoneW * 2 * BAR_W;
+  const zg = ctx.createLinearGradient(zx, 0, zx + zw, 0);
+  zg.addColorStop(0,   "rgba(224,120,40,.30)");
+  zg.addColorStop(0.5, "rgba(255,210,130,.85)");
+  zg.addColorStop(1,   "rgba(224,120,40,.30)");
+  ctx.fillStyle = zg; ctx.fillRect(zx, BAR_Y, zw, BAR_H);
+  // hjärtat
+  ctx.fillStyle = "rgba(255,248,225,.9)";
+  ctx.fillRect(BAR_X + zoneC * BAR_W - 1, BAR_Y - 4, 2, BAR_H + 8);
+
+  // markör
+  const mx = BAR_X + pos * BAR_W;
+  ctx.fillStyle = "#f4ece0";
+  ctx.fillRect(mx - 1.5, BAR_Y - 9, 3, BAR_H + 18);
+  ctx.beginPath();
+  ctx.moveTo(mx - 7, BAR_Y - 9); ctx.lineTo(mx + 7, BAR_Y - 9); ctx.lineTo(mx, BAR_Y - 1);
+  ctx.closePath(); ctx.fill();
+}
+function drawHud(){
+  ctx.font = "700 40px ui-sans-serif,system-ui,sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillText(score, VW/2 + 2, 70 + 2);
+  ctx.fillStyle = "#f0e6d4";        ctx.fillText(score, VW/2, 70);
+
+  if (combo > 1){
+    ctx.font = "700 15px ui-sans-serif,system-ui,sans-serif";
+    ctx.fillStyle = "rgba(224,161,84,.95)";
+    ctx.fillText(combo + "× combo", VW/2, 104);
+  }
+  // sprickor som symboler
+  ctx.font = "600 14px ui-sans-serif,system-ui,sans-serif";
+  ctx.textAlign = "right";
+  let s = "";
+  for (let i = 0; i < MAX_CRACKS; i++) s += (i < cracks ? "✖ " : "◆ ");
+  ctx.fillStyle = cracks >= 2 ? "#ff6a5a" : "rgba(224,161,84,.7)";
+  ctx.fillText(s.trim(), VW - 30, 70);
+  ctx.textAlign = "center";
+}
+function draw(t){
+  ctx.save();
+  ctx.clearRect(0, 0, cssW, cssH);
+  ctx.fillStyle = "#07060b"; ctx.fillRect(0, 0, cssW, cssH);
+  ctx.translate(offX + (shake ? (Math.random()-.5)*9*shake : 0),
+                offY + (shake ? (Math.random()-.5)*9*shake : 0));
+  ctx.scale(scale, scale);
+  ctx.beginPath(); ctx.rect(0, 0, VW, VH); ctx.clip();
+
+  const sky = ctx.createLinearGradient(0, 0, 0, VH);
+  sky.addColorStop(0, "#0b0812"); sky.addColorStop(0.6, "#120c14"); sky.addColorStop(1, "#1a0f10");
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+
+  // ässjans glöd bakom städet
+  ctx.globalCompositeOperation = "lighter";
+  const fg = ctx.createRadialGradient(VW/2, 330, 0, VW/2, 330, 200);
+  const fi = 0.10 + heat * 0.16 + flash * 0.25;
+  fg.addColorStop(0, "rgba(255,140,60," + fi + ")");
+  fg.addColorStop(1, "rgba(255,90,30,0)");
+  ctx.fillStyle = fg; ctx.fillRect(0, 90, VW, 460);
+  ctx.globalCompositeOperation = "source-over";
+
+  drawBlade(); drawAnvil(); drawHammer();
+
+  ctx.globalCompositeOperation = "lighter";
+  for (const s of sparks){
+    const a = (1 - s.age / s.life) * 0.8;
+    const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 3.6);
+    g.addColorStop(0, "rgba(255,220,160," + a + ")");
+    g.addColorStop(1, "rgba(255,130,40,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 3.6, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  if (state === "play"){ drawBar(); drawHud(); }
+  ctx.restore();
+}
+
+function loop(t){
+  requestAnimationFrame(loop);
+  if (tPrev === undefined) tPrev = t;
+  const dt = Math.min(0.033, (t - tPrev) / 1000); tPrev = t;
+  update(dt); draw(t);
+}
+reset();
+requestAnimationFrame(loop);
+
+/* ── styrning ────────────────────────────────────────────────────── */
+addEventListener("pointerdown", e => {
+  if (e.target.closest(".panel") || e.target.closest(".back")) return;
+  e.preventDefault(); strike();
+}, { passive:false });
+addEventListener("keydown", e => {
+  if (e.code === "Space" || e.code === "Enter"){
+    e.preventDefault();
+    if (state === "play") strike(); else startGame();
+  }
+});
+
+if (location.hash === "#debug"){
+  window.__forge = { get score(){return score;}, get state(){return state;},
+                     get pos(){return pos;}, get zoneC(){return zoneC;},
+                     get zoneW(){return zoneW;}, get cracks(){return cracks;}, strike };
+}
+
+/* ── UI ──────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+function startGame(){
+  reset(); state = "play";
+  $("startPanel").classList.remove("on");
+  $("overPanel").classList.remove("on");
+}
+$("startBtn").onclick = startGame;
+$("againBtn").onclick = startGame;
+
+function showOver(isNew){
+  $("finalScore").textContent = score;
+  $("finalGrade").textContent = grade();
+  $("finalBest").innerHTML = isNew ? '<span class="new">New best!</span>' : "Best " + best;
+  const wrap = $("submitWrap");
+  wrap.style.display = (API && score > 0) ? "block" : "none";
+  if (API && score > 0){
+    try { $("nameInput").value = localStorage.getItem(LS_NAME) || ""; } catch(e){}
+    $("submitBtn").disabled = false; $("submitBtn").textContent = "Submit score";
+  }
+  $("overPanel").classList.add("on");
+  loadBoard("overBoard");
+}
+
+/* ── topplista ───────────────────────────────────────────────────── */
+let myEntry = null;
+const esc = s => String(s).replace(/[<>&"]/g, c =>
+  ({ "<":"&lt;", ">":"&gt;", "&":"&amp;", '"':"&quot;" }[c]));
+
+function boardHTML(rows){
+  if (!rows.length) return '<p class="note">No blades yet — forge the first.</p>';
+  return "<ol>" + rows.map((r, i) =>
+    '<li class="' + (myEntry && r.name === myEntry.name && r.score === myEntry.score ? "me" : "") +
+    '"><span>' + (i+1) + "</span><span>" + esc(r.name) + "</span><span>" + r.score +
+    "</span></li>").join("") + "</ol>";
+}
+async function loadBoard(id){
+  const el = $(id);
+  if (!API){
+    el.innerHTML = '<h2>Best</h2><p class="note">Your best: ' + best +
+                   '. A shared leaderboard is coming.</p>';
+    return;
+  }
+  el.innerHTML = '<h2>Leaderboard</h2><p class="note">Loading…</p>';
+  try {
+    const r = await fetch(API + "/top?game=" + GAME, { cache: "no-store" });
+    el.innerHTML = "<h2>Leaderboard</h2>" + boardHTML((await r.json()).slice(0, 10));
+  } catch(e){
+    el.innerHTML = '<h2>Leaderboard</h2><p class="note">Offline — your best: ' + best + "</p>";
+  }
+}
+$("submitBtn").onclick = async () => {
+  const name = ($("nameInput").value || "").trim().slice(0, 12);
+  if (!name){ $("nameInput").focus(); return; }
+  try { localStorage.setItem(LS_NAME, name); } catch(e){}
+  const btn = $("submitBtn");
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    await fetch(API + "/score?game=" + GAME, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, score })
+    });
+    myEntry = { name, score };
+    btn.textContent = "Submitted";
+    $("submitWrap").style.display = "none";
+    loadBoard("overBoard");
+  } catch(e){ btn.disabled = false; btn.textContent = "Try again"; }
+};
+
+loadBoard("startBoard");
+})();
+</script>
