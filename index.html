@@ -630,26 +630,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
   var hero = cvs.closest('.hero'), ctx = cvs.getContext('2d');
   if (!ctx) return;
 
-  var W = 0, H = 0, puffs = [], motes = [], sprite = null, baseGlow = null,
-      visible = true, last = 0, lastW = 0;
-
-  /* enstaka glödpunkt som stiger ur mörkret längst ner, lyser upp och
-     slocknar. De är små med flit — de finns för att göra dimmans
-     rörelse läsbar, inte för att synas i sig.                        */
-  function seedMote(m, spread){
-    m.x   = Math.random() * W;
-    m.y   = H * (0.97 + Math.random() * 0.08);
-    m.r   = 0.7 + Math.random() * 1.4;
-    m.vy  = -(5 + Math.random() * 11);          // px/s uppåt
-    m.sw  = 5 + Math.random() * 11;             // hur brett den vaggar
-    m.ph  = Math.random() * 6.2832;
-    m.dur = 7 + Math.random() * 7;              // sekunder på skärmen
-    m.a   = 0.34 + Math.random() * 0.30;        /* liten fast prick, tål mer */
-    m.fl  = 2.4 + Math.random() * 4.2;          /* eget glittertempo */
-    m.age = spread ? Math.random() : 0;         /* vid start: sprid ut dem
-                                                   så de inte tänds i takt */
-    if (spread) m.y += m.vy * m.age * m.dur;
-  }
+  var W = 0, H = 0, puffs = [], visible = true, last = 0, lastW = 0;
 
   function build(){
     var r = hero.getBoundingClientRect();
@@ -672,32 +653,6 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       });
     }
     puffs.sort(function(p, q){ return p.y - q.y; });
-
-    motes = [];
-    var n = W < 520 ? 17 : 26;
-    for (var k = 0; k < n; k++){ var m = {}; seedMote(m, true); motes.push(m); }
-
-    /* glödpunkten ritas en gång till en egen liten canvas och stämplas
-       sedan ut med globalAlpha — billigare än en ny gradient per punkt
-       och bildruta.                                                    */
-    sprite = document.createElement('canvas');
-    sprite.width = sprite.height = 64;
-    var sc = sprite.getContext('2d');
-    var sg = sc.createRadialGradient(32, 32, 0, 32, 32, 32);
-    /* Färgen hålls konstant och bara alfat tonar ut. Tonas rgb ner mot
-       kanten hamnar ytterkanten på så lågt alfa att canvasens 8-bitars
-       lagring inte kan beskriva kulören längre — bärnstenen faller isär
-       till neutralt grått och syns som en gloria runt varje punkt.   */
-    sg.addColorStop(0,    'rgba(255,166,58,1)');
-    sg.addColorStop(0.42, 'rgba(255,166,58,1)');    /* fast kärna ... */
-    sg.addColorStop(0.62, 'rgba(255,166,58,.30)');  /* ... hårfin kant, ingen dis */
-    sg.addColorStop(1,    'rgba(255,166,58,0)');
-    sc.fillStyle = sg; sc.fillRect(0, 0, 64, 64);
-
-    baseGlow = ctx.createRadialGradient(W * .5, H * 1.06, 0, W * .5, H * 1.06, W * .62);
-    baseGlow.addColorStop(0,   'rgba(198,144,64,1)');
-    baseGlow.addColorStop(0.6, 'rgba(170,120,56,.35)');
-    baseGlow.addColorStop(1,   'rgba(150,105,50,0)');
   }
 
   function frame(now){
@@ -725,27 +680,6 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       ctx.beginPath(); ctx.arc(p.x, y, p.rx, 0, 6.2832); ctx.fill();
       ctx.restore();
     }
-
-    /* en mycket svag värme längst ner, som glödpunkterna verkar komma ur */
-    ctx.globalAlpha = 0.030 + Math.sin(now / 1000 * 0.13) * 0.010;
-    ctx.fillStyle = baseGlow;
-    ctx.fillRect(0, H * 0.62, W, H * 0.38);
-
-    for (var j = 0; j < motes.length; j++){
-      var m = motes[j];
-      m.y   += m.vy * dt;
-      m.age += dt / m.dur;
-      if (m.age >= 1){ seedMote(m, false); continue; }
-
-      var ma = m.a * Math.sin(Math.PI * m.age)       // tänds och slocknar mjukt
-                   * (0.60 + Math.sin(now / 1000 * m.fl + m.ph) * 0.40);  /* glitter */
-      var mx = m.x + Math.sin(now / 1000 * 0.42 + m.ph) * m.sw;
-      var md = m.r * 3.4;
-      ctx.globalAlpha = ma;
-      ctx.drawImage(sprite, mx - md / 2, m.y - md / 2, md, md);
-    }
-
-    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
 
