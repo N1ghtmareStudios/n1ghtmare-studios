@@ -644,7 +644,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
     m.sw  = 5 + Math.random() * 11;             // hur brett den vaggar
     m.ph  = Math.random() * 6.2832;
     m.dur = 7 + Math.random() * 7;              // sekunder på skärmen
-    m.a   = 0.09 + Math.random() * 0.11;
+    m.a   = 0.12 + Math.random() * 0.15;
     m.age = spread ? Math.random() : 0;         /* vid start: sprid ut dem
                                                    så de inte tänds i takt */
     if (spread) m.y += m.vy * m.age * m.dur;
@@ -673,7 +673,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
     puffs.sort(function(p, q){ return p.y - q.y; });
 
     motes = [];
-    var n = W < 520 ? 9 : 14;
+    var n = W < 520 ? 17 : 26;
     for (var k = 0; k < n; k++){ var m = {}; seedMote(m, true); motes.push(m); }
 
     /* glödpunkten ritas en gång till en egen liten canvas och stämplas
@@ -683,9 +683,11 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
     sprite.width = sprite.height = 64;
     var sc = sprite.getContext('2d');
     var sg = sc.createRadialGradient(32, 32, 0, 32, 32, 32);
-    sg.addColorStop(0,    'rgba(255,216,146,1)');
-    sg.addColorStop(0.35, 'rgba(214,158,74,.42)');
-    sg.addColorStop(1,    'rgba(190,138,60,0)');
+    /* mättad bärnsten, inte gräddvitt — additiv ritning drar ändå allt
+       mot vitt, så färgen måste börja långt ner i det varma            */
+    sg.addColorStop(0,    'rgba(255,166,58,1)');
+    sg.addColorStop(0.32, 'rgba(206,104,22,.48)');
+    sg.addColorStop(1,    'rgba(168,78,18,0)');
     sc.fillStyle = sg; sc.fillRect(0, 0, 64, 64);
 
     baseGlow = ctx.createRadialGradient(W * .5, H * 1.06, 0, W * .5, H * 1.06, W * .62);
