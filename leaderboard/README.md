@@ -38,8 +38,10 @@ this many times over.
    automatically once set; with an empty string the games just track a local
    best.
 
-   All free games share this one Worker — `?game=` keeps the boards apart, so
-   adding a game means adding its id to `GAMES` in `worker.js`.
+   ...and `pack.html`. All free games share this one Worker — `?game=` keeps
+   the boards apart, so adding a game means widening `GAME_RE` in `worker.js`.
+   Backpack passes `pack-YYYY-MM-DD`, so its board resets every day on its own
+   (old days expire after 40 days).
 
 ## Check it works
 
