@@ -1,0 +1,278 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d14">
+<meta name="description" content="Press kit for N1ghtmare Studios — fact sheet, screenshots, key art and logos for Warpack, Soulsmith and Bonecount. Free to use, no permission needed.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="canonical" href="https://n1ghtmarestudios.com/presskit.html">
+<meta property="og:title" content="N1ghtmare Studios — Press kit">
+<meta property="og:description" content="Fact sheet, screenshots and key art for Warpack, Soulsmith and Bonecount.">
+<meta property="og:image" content="https://n1ghtmarestudios.com/og.jpg">
+<meta property="og:url" content="https://n1ghtmarestudios.com/presskit.html">
+<title>Press kit — N1ghtmare Studios</title>
+<style>
+  :root{
+    --ground:#0a0d14; --raised:#121722; --rule:#232a39;
+    --ink:#e7e4db; --ink-soft:#8b93a5;
+    --gold:#c8922f; --gold-soft:#7d6024; --gold-ink:#150f04;
+    --display:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--ground); color:var(--ink);
+       font:16px/1.65 var(--body); -webkit-font-smoothing:antialiased;
+       -webkit-text-size-adjust:100%}
+  img{max-width:100%; height:auto; display:block}
+  a{color:var(--gold)}
+  .wrap{max-width:960px; margin:0 auto; padding:0 22px}
+
+  .nav{position:sticky; top:0; z-index:10;
+       background:color-mix(in srgb, var(--ground) 90%, transparent);
+       backdrop-filter:blur(10px); border-bottom:1px solid var(--rule)}
+  .nav .wrap{display:flex; align-items:center; justify-content:space-between; height:58px; gap:16px}
+  .brand{font:600 15px/1 var(--display); letter-spacing:.17em; text-transform:uppercase;
+         color:var(--ink); text-decoration:none}
+  .brand b{color:var(--gold); font-weight:600}
+  .nav a.up{color:var(--ink-soft); font-size:13px; letter-spacing:.1em;
+            text-transform:uppercase; text-decoration:none}
+  .nav a.up:hover{color:var(--gold)}
+
+  header.top{padding:clamp(46px,9vw,74px) 0 clamp(30px,5vw,44px); border-bottom:1px solid var(--rule)}
+  h1{font:400 clamp(30px,6.4vw,50px)/1.06 var(--display);
+     letter-spacing:.07em; text-transform:uppercase; margin:0 0 16px; text-wrap:balance}
+  h1 em{font-style:normal; color:var(--gold)}
+  .lede{color:var(--ink-soft); font-size:clamp(15px,2.1vw,17.5px); max-width:60ch; margin:0}
+
+  section{padding:clamp(40px,6vw,60px) 0; border-bottom:1px solid var(--rule)}
+  .eyebrow{font:500 12px/1 var(--body); letter-spacing:.24em; text-transform:uppercase;
+           color:var(--gold-soft); margin:0 0 28px; display:flex; align-items:center; gap:14px}
+  .eyebrow::after{content:""; flex:1; height:1px; background:var(--rule)}
+  h2{font:400 clamp(22px,3.6vw,30px)/1.15 var(--display); margin:0 0 6px; letter-spacing:.02em}
+  h3{font:400 22px/1.2 var(--display); margin:0 0 4px}
+  p{max-width:66ch}
+
+  .facts{list-style:none; margin:0; padding:0; border-top:1px solid var(--rule);
+         font-variant-numeric:tabular-nums}
+  .facts li{display:flex; gap:20px; padding:12px 0; border-bottom:1px solid var(--rule); font-size:14.5px}
+  .facts b{flex:0 0 150px; color:var(--ink-soft); font-weight:500; letter-spacing:.05em}
+  @media(max-width:560px){ .facts li{flex-direction:column; gap:2px} .facts b{flex:none} }
+
+  .btn{display:inline-block; font:700 14px/1 var(--body); letter-spacing:.05em;
+       padding:14px 22px; border-radius:5px; text-decoration:none;
+       background:var(--gold); color:var(--gold-ink); border:1px solid var(--gold)}
+  .btn.ghost{background:none; color:var(--gold); border-color:var(--rule); font-weight:600}
+  .btns{display:flex; gap:11px; flex-wrap:wrap; margin-top:8px}
+
+  .game{padding-top:34px}
+  .game:first-of-type{padding-top:0}
+  .status{display:inline-block; font:500 11px/1 var(--body); letter-spacing:.15em;
+          text-transform:uppercase; color:var(--gold); border:1px solid var(--gold-soft);
+          border-radius:99px; padding:5px 12px; margin-bottom:12px}
+  .tags{color:var(--ink-soft); font-size:13.5px; letter-spacing:.05em; margin:0 0 14px}
+
+  .shots{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+         gap:12px; margin:18px 0 0}
+  .shot{display:block; border:1px solid var(--rule); border-radius:6px; overflow:hidden;
+        text-decoration:none; background:var(--raised)}
+  .shot img{transition:transform .3s ease}
+  .shot:hover img{transform:scale(1.03)}
+  .shot span{display:block; padding:8px 10px; color:var(--ink-soft); font-size:11.5px;
+             letter-spacing:.06em; border-top:1px solid var(--rule)}
+
+  .quote{border-left:2px solid var(--gold-soft); padding:2px 0 2px 18px; margin:0 0 18px;
+         color:var(--ink); font-size:16.5px; max-width:62ch}
+  .foot{padding:40px 0 60px; color:var(--ink-soft); font-size:13px; text-align:center}
+  code{background:var(--raised); border:1px solid var(--rule); border-radius:4px;
+       padding:2px 6px; font-size:13.5px}
+</style>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="/" class="brand" translate="no">N1ghtmare <b>Studios</b></a>
+    <a class="up" href="/">&lsaquo; Back to the site</a>
+  </div>
+</nav>
+
+<header class="top">
+  <div class="wrap">
+    <h1>Press <em>kit</em></h1>
+    <p class="lede">Everything you need to write about, record or stream our games,
+       in one place. No permission required, no embargo to sign, no forms.
+       If something is missing, ask and you will have it the same day.</p>
+    <div class="btns" style="margin-top:22px">
+      <a class="btn" href="/press/n1ghtmare-studios-press-kit.zip" download>Download everything (1.4 MB)</a>
+      <a class="btn ghost" href="mailto:contact@n1ghtmarestudios.com?subject=Press%20enquiry">Email us</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Permission</p>
+    <p class="quote">Content creators, streamers and press have full permission to record,
+      stream and monetise videos of any N1ghtmare Studios game, including demos and any
+      pre-release build. No separate licence is needed. Go ahead.</p>
+    <p style="color:var(--ink-soft); font-size:14.5px">
+      For review keys, interviews or anything not covered here, email
+      <a href="mailto:contact@n1ghtmarestudios.com">contact@n1ghtmarestudios.com</a>
+      with the game's name in the subject line.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Fact sheet</p>
+    <ul class="facts">
+      <li><b>Studio</b><span translate="no">N1ghtmare Studios</span></li>
+      <li><b>Founded</b><span>2025 &middot; Sweden</span></li>
+      <li><b>Team size</b><span>One</span></li>
+      <li><b>Engine</b><span>Unity</span></li>
+      <li><b>Website</b><span><a href="https://n1ghtmarestudios.com">n1ghtmarestudios.com</a></span></li>
+      <li><b>Contact</b><span><a href="mailto:contact@n1ghtmarestudios.com">contact@n1ghtmarestudios.com</a></span></li>
+      <li><b>Titles</b><span translate="no">Warpack &middot; Soulsmith &middot; Bonecount</span></li>
+    </ul>
+    <p style="color:var(--ink-soft); font-size:14.5px; margin-top:22px">
+      N1ghtmare Studios is a one-person studio based in Sweden. Design, code, art
+      direction and audio all land on the same desk. The through-line is dark fantasy
+      with real systems underneath: simulations you can learn, builds you can break,
+      and sessions short enough to fit into a real life. No live-service treadmill,
+      no pay-to-win — you buy the game, you own the game.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Games</p>
+
+    <div class="game">
+      <span class="status">Coming soon to Steam &middot; Demo at Next Fest in October</span>
+      <h3 translate="no">Warpack</h3>
+      <p class="tags">Auto-battler &middot; Roguelite &middot; Asynchronous PvP &middot; PC</p>
+      <p>Build a warband from a shop, fit it into a backpack that never has enough room,
+         then send it out to fight the armies other players have left behind. Every battle
+         is a puzzle you solved twenty seconds ago. The backpack is the build: space,
+         adjacency and shape matter as much as what you bought. Four factions to master,
+         and a fifth marching in behind them.</p>
+      <div class="btns">
+        <a class="btn ghost" href="https://store.steampowered.com/app/5016130/" target="_blank" rel="noopener">Steam page</a>
+      </div>
+      <div class="shots">
+        <a class="shot" href="/press/images/warpack-key-art.jpg" download>
+          <img src="/press/images/warpack-key-art.jpg" alt="Warpack key art" loading="lazy">
+          <span>Key art</span></a>
+        <a class="shot" href="/press/images/warpack-a-battle-in-progress.jpg" download>
+          <img src="/press/images/warpack-a-battle-in-progress.jpg" alt="Warpack — a battle in progress" loading="lazy">
+          <span>A battle in progress</span></a>
+        <a class="shot" href="/press/images/warpack-the-shop-and-backpack.jpg" download>
+          <img src="/press/images/warpack-the-shop-and-backpack.jpg" alt="Warpack — the shop and backpack" loading="lazy">
+          <span>The shop and backpack</span></a>
+        <a class="shot" href="/press/images/warpack-commanders-facing-off.jpg" download>
+          <img src="/press/images/warpack-commanders-facing-off.jpg" alt="Warpack — commanders facing off" loading="lazy">
+          <span>Commanders facing off</span></a>
+        <a class="shot" href="/press/images/warpack-victory-recap.jpg" download>
+          <img src="/press/images/warpack-victory-recap.jpg" alt="Warpack — victory recap" loading="lazy">
+          <span>Victory recap</span></a>
+      </div>
+    </div>
+
+    <div class="game">
+      <span class="status">Coming soon on Steam</span>
+      <h3 translate="no">Soulsmith</h3>
+      <p class="tags">Story action RPG &middot; 2D &middot; Chapter-gated &middot; PC</p>
+      <p>A blacksmith's apprentice in a world that stopped making heroes. Forge the weapon,
+         then find out what it costs to carry it. Smithing, fusion and gear that carries the
+         story as much as the stats. The level cap holds until the chapter's boss falls —
+         beat it or stay humble. Launching into Early Access with the opening chapters.</p>
+      <div class="btns">
+        <a class="btn ghost" href="https://store.steampowered.com/app/4614620/Soulsmith/" target="_blank" rel="noopener">Steam page</a>
+      </div>
+      <div class="shots">
+        <a class="shot" href="/press/images/soulsmith-a-forgotten-candlelit-shrine-beneath-the-fortress.jpg" download>
+          <img src="/press/images/soulsmith-a-forgotten-candlelit-shrine-beneath-the-fortress.jpg" alt="Soulsmith — a candlelit shrine beneath the fortress" loading="lazy">
+          <span>Shrine beneath the fortress</span></a>
+        <a class="shot" href="/press/images/soulsmith-screenshot.jpg" download>
+          <img src="/press/images/soulsmith-screenshot.jpg" alt="Soulsmith screenshot" loading="lazy">
+          <span>Screenshot</span></a>
+        <a class="shot" href="/press/images/soulsmith-screenshot-2.jpg" download>
+          <img src="/press/images/soulsmith-screenshot-2.jpg" alt="Soulsmith screenshot" loading="lazy">
+          <span>Screenshot</span></a>
+        <a class="shot" href="/press/images/soulsmith-scene-art-a-dark-forest-ravine.jpg" download>
+          <img src="/press/images/soulsmith-scene-art-a-dark-forest-ravine.jpg" alt="Soulsmith scene art — a dark forest ravine" loading="lazy">
+          <span>Scene art — forest ravine</span></a>
+        <a class="shot" href="/press/images/soulsmith-scene-art-a-moonlit-forest-clearing.jpg" download>
+          <img src="/press/images/soulsmith-scene-art-a-moonlit-forest-clearing.jpg" alt="Soulsmith scene art — a moonlit forest clearing" loading="lazy">
+          <span>Scene art — moonlit clearing</span></a>
+      </div>
+    </div>
+
+    <div class="game">
+      <span class="status">In development</span>
+      <h3 translate="no">Bonecount</h3>
+      <p class="tags">Action roguelite &middot; Survivors-like &middot; Same world as Soulsmith &middot; PC</p>
+      <p>A twin-stick souls-survivor set in the same world as Soulsmith. The waves come, the
+         bosses fall, and every bone you take home is currency — the fallen become permanent
+         power back at the hub. Classes, perks, relics and skills that stack into something
+         unreasonable.</p>
+      <div class="shots">
+        <a class="shot" href="/press/images/bonecount-the-hub-class-podiums-around-the-fountain.jpg" download>
+          <img src="/press/images/bonecount-the-hub-class-podiums-around-the-fountain.jpg" alt="Bonecount — the hub" loading="lazy">
+          <span>The hub</span></a>
+        <a class="shot" href="/press/images/bonecount-choosing-a-legendary-heir.jpg" download>
+          <img src="/press/images/bonecount-choosing-a-legendary-heir.jpg" alt="Bonecount — choosing a legendary heir" loading="lazy">
+          <span>Choosing a legendary heir</span></a>
+        <a class="shot" href="/press/images/bonecount-a-51-kill-streak-in-skullhold.jpg" download>
+          <img src="/press/images/bonecount-a-51-kill-streak-in-skullhold.jpg" alt="Bonecount — a kill streak in Skullhold" loading="lazy">
+          <span>Kill streak in Skullhold</span></a>
+        <a class="shot" href="/press/images/bonecount-combat-in-grendalheim.jpg" download>
+          <img src="/press/images/bonecount-combat-in-grendalheim.jpg" alt="Bonecount — combat in Grendalheim" loading="lazy">
+          <span>Combat in Grendalheim</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Branding</p>
+    <div class="shots">
+      <a class="shot" href="/press/images/n1ghtmare-studios-hero-art.jpg" download>
+        <img src="/press/images/n1ghtmare-studios-hero-art.jpg" alt="N1ghtmare Studios hero art" loading="lazy">
+        <span>Studio hero art</span></a>
+      <a class="shot" href="/press/images/n1ghtmare-studios-share-card.jpg" download>
+        <img src="/press/images/n1ghtmare-studios-share-card.jpg" alt="N1ghtmare Studios share card" loading="lazy">
+        <span>Share card &middot; 1200&times;630</span></a>
+      <a class="shot" href="/press/images/n1ghtmare-studios-mark.svg" download
+         style="display:flex; flex-direction:column">
+        <img src="/press/images/n1ghtmare-studios-mark.svg" alt="N1ghtmare Studios mark"
+             style="padding:34px; max-width:160px; margin:0 auto" loading="lazy">
+        <span>Studio mark &middot; SVG</span></a>
+    </div>
+    <p style="color:var(--ink-soft); font-size:14.5px; margin-top:20px">
+      The studio name is written <code translate="no">N1ghtmare Studios</code> — with a
+      one, not an i, and only the N capitalised. Game titles are
+      <code translate="no">Warpack</code>, <code translate="no">Soulsmith</code> and
+      <code translate="no">Bonecount</code>.
+    </p>
+  </div>
+</section>
+
+<section style="border-bottom:none">
+  <div class="wrap">
+    <p class="eyebrow">Also worth a look</p>
+    <p>Three free browser games and a graphics lab live on the site — no install, no
+       accounts, and fine to record. They are small things built between the big ones,
+       but they run on whatever you are holding.</p>
+    <div class="btns">
+      <a class="btn ghost" href="/#games">Free games</a>
+      <a class="btn ghost" href="/tendril.html">The Lab</a>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">&copy; 2026 <span translate="no">N1ghtmare Studios</span>.
+    All trademarks are property of their respective owners.</div>
+</footer>

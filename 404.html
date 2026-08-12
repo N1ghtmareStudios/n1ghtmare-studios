@@ -1,0 +1,100 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d14">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>Nothing here — N1ghtmare Studios</title>
+<style>
+  :root{
+    --ground:#0a0d14; --rule:#232a39; --ink:#e7e4db; --ink-soft:#8b93a5;
+    --gold:#c8922f; --gold-soft:#7d6024; --gold-ink:#150f04;
+    --display:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--ground); color:var(--ink);
+       font:16px/1.65 var(--body); -webkit-font-smoothing:antialiased;
+       display:flex; align-items:center; justify-content:center; overflow:hidden}
+  canvas{position:fixed; inset:0; width:100%; height:100%; z-index:0}
+  .wrap{position:relative; z-index:1; text-align:center; padding:28px; max-width:520px}
+  .code{font:400 clamp(66px,17vw,120px)/1 var(--display); letter-spacing:.1em;
+        color:var(--gold); margin:0 0 6px}
+  h1{font:400 clamp(21px,4.4vw,30px)/1.2 var(--display); letter-spacing:.06em;
+     text-transform:uppercase; margin:0 0 14px; text-wrap:balance}
+  p{color:var(--ink-soft); margin:0 0 26px; text-wrap:balance}
+  .crest{display:flex; align-items:center; justify-content:center; gap:12px; margin:0 0 22px}
+  .crest span{height:1px; width:52px; background:var(--gold-soft)}
+  .crest i{width:5px; height:5px; background:var(--gold); transform:rotate(45deg)}
+  .btns{display:flex; gap:11px; flex-wrap:wrap; justify-content:center}
+  a.btn{display:inline-block; font:700 14px/1 var(--body); letter-spacing:.05em;
+        padding:14px 22px; border-radius:5px; text-decoration:none;
+        background:var(--gold); color:var(--gold-ink); border:1px solid var(--gold)}
+  a.btn.ghost{background:none; color:var(--gold); border-color:var(--rule); font-weight:600}
+</style>
+
+<canvas id="ash" aria-hidden="true"></canvas>
+
+<div class="wrap">
+  <p class="code">404</p>
+  <h1>This road leads nowhere</h1>
+  <div class="crest"><span></span><i></i><span></span></div>
+  <p>Whatever stood here is gone, or never stood at all.
+     The way back is lit, and there are worse things to do than play something.</p>
+  <div class="btns">
+    <a class="btn" href="/">Back to the studio</a>
+    <a class="btn ghost" href="/#games">Free games</a>
+  </div>
+</div>
+
+<script>
+/* samma fallande aska som på förstasidan — billig och stämningsfull */
+(() => {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const c = document.getElementById("ash"), ctx = c.getContext("2d");
+  if (!ctx) return;
+  let W = 0, H = 0, motes = [], last = 0;
+  function build(){
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    c.width = Math.round(W*dpr); c.height = Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const n = Math.round(Math.min(130, Math.max(40, W*H/7000)));
+    motes = Array.from({length:n}, () => spawn(Math.random()*H));
+  }
+  function spawn(y){
+    return { x:Math.random()*W, y, r:.6+Math.random()*1.7, v:6+Math.random()*17,
+             sway:5+Math.random()*15, w:.25+Math.random()*.5, ph:Math.random()*6.2832,
+             a:.10+Math.random()*.30,
+             col: Math.random() < .8 ? "224,161,84" : "198,222,244" };
+  }
+  function frame(now){
+    requestAnimationFrame(frame);
+    const dt = Math.min(.05, (now-last)/1000); last = now;
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < motes.length; i++){
+      const m = motes[i];
+      m.y += m.v*dt;
+      if (m.y - m.r > H){ motes[i] = spawn(-4 - Math.random()*30); continue; }
+      const x = m.x + Math.sin(now/1000*m.w + m.ph)*m.sway;
+      const a = m.a * Math.min(1, m.y/60) * Math.min(1, (H-m.y)/90);
+      if (a <= .002) continue;
+      const g = ctx.createRadialGradient(x, m.y, 0, x, m.y, m.r*4.5);
+      g.addColorStop(0, "rgba("+m.col+","+a+")");
+      g.addColorStop(1, "rgba("+m.col+",0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, m.y, m.r*4.5, 0, 6.2832); ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+  build();
+  let rt, lastW = innerWidth;
+  addEventListener("resize", () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => { if (Math.abs(innerWidth-lastW) > 24){ lastW = innerWidth; build(); } }, 260);
+  });
+  requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
