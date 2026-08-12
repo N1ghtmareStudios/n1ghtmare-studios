@@ -192,6 +192,10 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
 @media(min-width:640px){ .grid{grid-template-columns:1fr 1fr} }
 .card{background:var(--raised); border:1px solid var(--rule); border-radius:8px; padding:24px}
 .card h4{font:400 21px/1.2 var(--display); margin:0 0 5px}
+/* gratisspelen har ingen konst att visa — en liten slinga får göra
+   jobbet i stället, så korten inte står tomma bredvid Warpack       */
+.prev{display:block; width:100%; aspect-ratio:16/7; margin:0 0 16px;
+      border:1px solid var(--rule); border-radius:6px; background:#0d1019}
 .card .tags{margin-bottom:11px; font-size:12.5px}
 .card p{margin:0 0 16px; color:var(--ink-soft); font-size:14.5px}
 
@@ -402,6 +406,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
 
       <div class="grid">
         <div class="card">
+          <canvas class="prev" data-prev="wisp" aria-hidden="true"></canvas>
           <h4 translate="no">Wisp</h4>
           <p class="tags">One button &middot; Arcade</p>
           <p>A soul adrift in the dark. Tap to lift it, thread the bone spires,
@@ -412,6 +417,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
         </div>
 
         <div class="card">
+          <canvas class="prev" data-prev="arena" aria-hidden="true"></canvas>
           <h4>Bonecount Arena</h4>
           <p class="tags">Survivors-like &middot; Move only</p>
           <p>Drag to move — the soulfire picks its own targets. Walk over the
@@ -423,6 +429,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
         </div>
 
         <div class="card">
+          <canvas class="prev" data-prev="forge" aria-hidden="true"></canvas>
           <h4 translate="no">Forge</h4>
           <p class="tags">One button &middot; Timing</p>
           <p>Strike the hot steel on the beat. The truer the blow, the finer the
@@ -786,6 +793,192 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
   /* låt CSS sköta intoningen först; ta sedan över opaciteten härifrån,
      annars skulle övergången bromsa varje bildruta i svepet          */
   setTimeout(function(){ glow.style.transition = 'none'; own = true; }, 1800);
+})();
+</script>
+<script>
+/* ── gratisspelens förhandsvisningar ──────────────────────────────────
+   Tre små slingor som antyder hur spelen känns. De ritar inte spelens
+   riktiga kod — de lånar bara rörelsen och färgen. En enda rAF driver
+   alla tre, och den står still när fliken är dold eller ligger utanför
+   rutan, så ingenting mal i bakgrunden.                              */
+(function(){
+  var cvs = [].slice.call(document.querySelectorAll('canvas.prev'));
+  if (!cvs.length) return;
+  var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var panel = document.getElementById('panel-free');
+  var onScreen = true;
+
+  var views = cvs.map(function(c){
+    var v = { c: c, ctx: c.getContext('2d'), kind: c.dataset.prev, w: 0, h: 0, st: null };
+    size(v); v.st = init(v);
+    return v;
+  });
+
+  function size(v){
+    var r = v.c.getBoundingClientRect();
+    if (!r.width) return;
+    var dpr = Math.min(devicePixelRatio || 1, 2);
+    v.w = r.width; v.h = r.height;
+    v.c.width = Math.round(r.width * dpr); v.c.height = Math.round(r.height * dpr);
+    v.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function init(v){
+    var W = v.w || 300, H = v.h || 130;
+    if (v.kind === 'wisp'){
+      var sp = [];
+      for (var i = 0; i < 5; i++)
+        sp.push({ x: i * (W / 3.2) + W * 0.3, gap: H * 0.42, cy: H * (0.3 + Math.random() * 0.4) });
+      return { sp: sp, y: H * 0.5, vy: 0, trail: [] };
+    }
+    if (v.kind === 'arena'){
+      var foes = [], bones = [];
+      for (var j = 0; j < 7; j++)
+        foes.push({ a: Math.random() * 6.2832, d: H * (0.7 + Math.random() * 1.4), sp: 0.16 + Math.random() * 0.16 });
+      for (var k = 0; k < 5; k++)
+        bones.push({ x: Math.random() * W, y: Math.random() * H, ph: Math.random() * 6.2832 });
+      return { foes: foes, bones: bones, shots: [] };
+    }
+    return { hit: -9, flash: 0, sparks: [] };   /* forge */
+  }
+
+  function draw(v, t){
+    var ctx = v.ctx, W = v.w, H = v.h, s = v.st;
+    if (!W) return;
+    ctx.clearRect(0, 0, W, H);
+
+    if (v.kind === 'wisp'){
+      var sc = W * 0.055;                                  /* px per sekund-ish */
+      ctx.fillStyle = '#161a2a';
+      for (var i = 0; i < s.sp.length; i++){
+        var p = s.sp[i];
+        p.x -= sc * 0.016;
+        if (p.x < -W * 0.14){ p.x += W * 1.56; p.cy = H * (0.3 + Math.random() * 0.4); }
+        var bw = W * 0.075;
+        ctx.fillRect(p.x, 0, bw, p.cy - p.gap / 2);
+        ctx.fillRect(p.x, p.cy + p.gap / 2, bw, H);
+      }
+      /* själen söker mot närmaste öppning i stället för att flaxa slumpvis */
+      var near = null, bd = 1e9;
+      for (var n = 0; n < s.sp.length; n++){
+        var d = s.sp[n].x - W * 0.24;
+        if (d > -W * 0.1 && d < bd){ bd = d; near = s.sp[n]; }
+      }
+      var want = near ? near.cy : H * 0.5;
+      s.vy += (want - s.y) * 0.0022;
+      s.vy *= 0.94; s.y += s.vy;
+      s.trail.push({ x: W * 0.24, y: s.y });
+      if (s.trail.length > 16) s.trail.shift();
+      for (var q = 0; q < s.trail.length; q++){
+        var a = q / s.trail.length;
+        ctx.globalAlpha = a * 0.4;
+        ctx.fillStyle = '#9fd4ec';
+        ctx.beginPath(); ctx.arc(s.trail[q].x - (s.trail.length - q) * 1.6, s.trail[q].y, 2.2 * a + 0.6, 0, 6.2832); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      var g = ctx.createRadialGradient(W * 0.24, s.y, 0, W * 0.24, s.y, 11);
+      g.addColorStop(0, 'rgba(224,161,84,.95)'); g.addColorStop(1, 'rgba(224,161,84,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W * 0.24, s.y, 11, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = '#ffe9c8';
+      ctx.beginPath(); ctx.arc(W * 0.24, s.y, 2.6, 0, 6.2832); ctx.fill();
+      return;
+    }
+
+    if (v.kind === 'arena'){
+      var cx = W / 2, cy = H / 2;
+      for (var b = 0; b < s.bones.length; b++){
+        var bo = s.bones[b];
+        ctx.globalAlpha = 0.5 + Math.sin(t / 600 + bo.ph) * 0.2;
+        ctx.fillStyle = '#d8d2c4';
+        ctx.fillRect(bo.x, bo.y, 2.4, 2.4);
+      }
+      ctx.globalAlpha = 1;
+      for (var f = 0; f < s.foes.length; f++){
+        var fo = s.foes[f];
+        fo.d -= fo.sp; fo.a += 0.004;
+        if (fo.d < H * 0.16){ fo.d = H * (1.5 + Math.random()); fo.a = Math.random() * 6.2832; }
+        var fx = cx + Math.cos(fo.a) * fo.d, fy = cy + Math.sin(fo.a) * fo.d * 0.62;
+        ctx.fillStyle = '#7d3a34';
+        ctx.beginPath(); ctx.arc(fx, fy, 3.4, 0, 6.2832); ctx.fill();
+      }
+      for (var o = 0; o < 3; o++){
+        var oa = t / 520 + o * 2.094;
+        var ox = cx + Math.cos(oa) * H * 0.3, oy = cy + Math.sin(oa) * H * 0.3;
+        ctx.fillStyle = 'rgba(224,161,84,.85)';
+        ctx.beginPath(); ctx.arc(ox, oy, 2.2, 0, 6.2832); ctx.fill();
+      }
+      var pg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 13);
+      pg.addColorStop(0, 'rgba(224,161,84,.9)'); pg.addColorStop(1, 'rgba(224,161,84,0)');
+      ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(cx, cy, 13, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = '#ffe9c8';
+      ctx.beginPath(); ctx.arc(cx, cy, 3.2, 0, 6.2832); ctx.fill();
+      return;
+    }
+
+    /* forge: markören sveper, träffar zonen, gnistor far */
+    var barY = H * 0.52, barH = H * 0.30, pad = W * 0.09, bw2 = W - pad * 2;
+    ctx.fillStyle = '#191527';
+    ctx.fillRect(pad, barY - barH / 2, bw2, barH);
+    var zx = pad + bw2 * 0.46, zw = bw2 * 0.14;
+    var hg = ctx.createLinearGradient(0, barY - barH, 0, barY + barH);
+    hg.addColorStop(0, 'rgba(224,161,84,0)');
+    hg.addColorStop(0.5, 'rgba(224,161,84,.20)');
+    hg.addColorStop(1, 'rgba(224,161,84,0)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(zx - zw, barY - barH, zw * 3, barH * 2);   /* värmen runt zonen */
+    ctx.fillStyle = 'rgba(255,150,50,.42)';
+    ctx.fillRect(zx, barY - barH / 2, zw, barH);
+    var u = (Math.sin(t / 900) + 1) / 2, mx = pad + bw2 * u;
+    if (mx > zx && mx < zx + zw && t - s.hit > 700){
+      s.hit = t; s.flash = 1;
+      for (var k2 = 0; k2 < 9; k2++)
+        s.sparks.push({ x: mx, y: barY, vx: (Math.random() - 0.5) * 2.4,
+                        vy: -Math.random() * 2.2 - 0.5, l: 1 });
+    }
+    s.flash *= 0.9;
+    if (s.flash > 0.02){
+      ctx.fillStyle = 'rgba(224,161,84,' + (s.flash * 0.25) + ')';
+      ctx.fillRect(zx, barY - barH / 2, zw, barH);
+    }
+    for (var p2 = s.sparks.length - 1; p2 >= 0; p2--){
+      var sk = s.sparks[p2];
+      sk.x += sk.vx; sk.y += sk.vy; sk.vy += 0.09; sk.l -= 0.022;
+      if (sk.l <= 0){ s.sparks.splice(p2, 1); continue; }
+      ctx.globalAlpha = sk.l;
+      ctx.fillStyle = '#ffb648';
+      ctx.fillRect(sk.x, sk.y, 1.8, 1.8);
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowColor = 'rgba(255,220,170,.8)'; ctx.shadowBlur = 7;
+    ctx.fillStyle = '#fff4e2';
+    ctx.fillRect(mx - 1.2, barY - barH * 0.78, 2.4, barH * 1.56);
+    ctx.shadowBlur = 0;
+  }
+
+  if ('IntersectionObserver' in window && panel)
+    new IntersectionObserver(function(e){ onScreen = e[0].isIntersecting; },
+      { threshold: 0 }).observe(panel);
+
+  function frame(t){
+    requestAnimationFrame(frame);
+    if (!onScreen || (panel && panel.hidden)) return;
+    for (var i = 0; i < views.length; i++){
+      if (!views[i].w) size(views[i]);
+      draw(views[i], t);
+    }
+  }
+
+  var rt;
+  addEventListener('resize', function(){
+    clearTimeout(rt);
+    rt = setTimeout(function(){ views.forEach(function(v){ size(v); v.st = init(v); }); }, 250);
+  });
+
+  if (still){                      /* en stillbild räcker, ingen slinga */
+    requestAnimationFrame(function(t){
+      views.forEach(function(v){ if (!v.w) size(v); draw(v, t); });
+    });
+  } else requestAnimationFrame(frame);
 })();
 </script>
 </body>
