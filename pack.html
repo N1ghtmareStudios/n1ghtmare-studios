@@ -53,6 +53,8 @@
        font:700 20px/1 ui-sans-serif,system-ui,sans-serif; color:#ffd79a;
        text-shadow:0 2px 10px rgba(0,0,0,.7); animation:rise 1s ease-out forwards}
   @keyframes rise{ to{ transform:translate(-50%,-160%); opacity:0 } }
+  .pop.word{font:700 15px/1 ui-sans-serif,system-ui,sans-serif; letter-spacing:.18em;
+            color:#fff0d2; animation-duration:1.2s}
   .flash{position:absolute; inset:-10px; border-radius:14px; pointer-events:none;
          background:radial-gradient(circle at center, rgba(255,200,120,.30), rgba(255,160,60,0) 70%);
          animation:fade .5s ease-out forwards}
@@ -63,8 +65,14 @@
     position:relative; display:flex; align-items:center; justify-content:center;
     font-size:15px; cursor:pointer; transition:background .12s, border-color .12s;
   }
-  .cell.legal{border-color:rgba(224,161,84,.30); background:#161322}
   .cell.ghost{background:rgba(224,161,84,.30); border-color:rgba(224,161,84,.75)}
+  /* fyllda rutor har färgen som inline-stil, så förhandsvisningen måste
+     lysa upp dem med filter i stället för att måla över bakgrunden */
+  .cell.willclear{filter:brightness(1.45) saturate(1.15);
+    outline:2px solid rgba(255,222,160,.95); outline-offset:-2px;
+    box-shadow:0 0 16px rgba(255,205,130,.55) !important;
+    animation:pulse .9s ease-in-out infinite}
+  @keyframes pulse{ 50%{ filter:brightness(1.75) saturate(1.2) } }
   .cell.filled{border-color:transparent;
     box-shadow:inset 0 2px 0 rgba(255,255,255,.28), inset 0 -3px 0 rgba(0,0,0,.30),
                inset 2px 0 0 rgba(255,255,255,.10), inset -2px 0 0 rgba(0,0,0,.14)}
@@ -330,7 +338,6 @@ function render(){
     el.dataset.x = x; el.dataset.y = y;
     const k = board[y][x];
     if (k){ el.classList.add("filled"); el.style.background = KINDS[k]; }
-    else if (drag && tray[drag.i] && canPlace(tray[drag.i], x, y)) el.classList.add("legal");
     boardEl.appendChild(el);
   }
 
@@ -417,6 +424,9 @@ function resolveClear(rows, cols, lines){
     el.classList.add(boom.has(key) ? "boom" : "clearing");
   }
   popup(sx / gone.size, sy / gone.size, "+" + pts + (mult > 1 ? "  " + mult + "×" : ""));
+  const word = lines >= 3 ? "SLAUGHTER" : lines === 2 ? "ROUTED" :
+               boom.size >= 4 ? "DETONATED" : mult >= 3 ? "RELENTLESS" : "";
+  if (word) popup(N/2 - 0.5, sy / gone.size - 1.1, word, "word");
   if (lines > 1 || boom.size) flash();
 
   setTimeout(() => {
@@ -429,9 +439,9 @@ function resolveClear(rows, cols, lines){
 }
 
 const fxEl = document.getElementById("fx");
-function popup(gx, gy, text){
+function popup(gx, gy, text, cls){
   const el = document.createElement("div");
-  el.className = "pop";
+  el.className = "pop" + (cls ? " " + cls : "");
   el.textContent = text;
   el.style.left = ((gx + 0.5) / N * 100) + "%";
   el.style.top  = ((gy + 0.5) / N * 100) + "%";
@@ -474,14 +484,30 @@ function anchorFor(clientX, clientY, p, touch){
   return { x: gx, y: gy };
 }
 function clearGhost(){
-  for (const el of boardEl.children) el.classList.remove("ghost");
+  for (const el of boardEl.children) el.classList.remove("ghost", "willclear");
 }
 function showGhost(p, a){
   clearGhost();
   const ok = canPlace(p, a.x, a.y);
-  if (ok) for (const [cx, cy] of p.cells)
+  if (!ok) return false;
+  for (const [cx, cy] of p.cells)
     boardEl.children[(a.y + cy) * N + (a.x + cx)].classList.add("ghost");
-  return ok;
+
+  // lys upp rader och kolumner som skulle marschera ut — så ser man
+  // utdelningen innan man släpper, inte efteråt
+  const filled = new Set(p.cells.map(([cx,cy]) => (a.x+cx) + "," + (a.y+cy)));
+  const has = (x, y) => board[y][x] || filled.has(x + "," + y);
+  for (let y = 0; y < N; y++){
+    let full = true;
+    for (let x = 0; x < N; x++) if (!has(x, y)) { full = false; break; }
+    if (full) for (let x = 0; x < N; x++) boardEl.children[y*N+x].classList.add("willclear");
+  }
+  for (let x = 0; x < N; x++){
+    let full = true;
+    for (let y = 0; y < N; y++) if (!has(x, y)) { full = false; break; }
+    if (full) for (let y = 0; y < N; y++) boardEl.children[y*N+x].classList.add("willclear");
+  }
+  return true;
 }
 const carryEl = document.getElementById("carry");
 
@@ -546,7 +572,9 @@ addEventListener("pointerup", () => {
   if (a && tray[i] && canPlace(tray[i], a.x, a.y)) place(i, a.x, a.y);
   else render();
 });
-addEventListener("pointercancel", () => { drag = null; clearGhost(); carryEl.classList.remove("on", "bad"); });
+addEventListener("pointercancel", () => {
+  drag = null; clearGhost(); carryEl.classList.remove("on", "bad"); render();
+});
 
 $("restartBtn").onclick = start;
 $("retryBtn").onclick = start;
