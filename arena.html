@@ -1,0 +1,616 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07060b">
+<meta name="description" content="Bonecount Arena — a free survivors-like from N1ghtmare Studios. Move, let the soulfire do the killing, and take the bones home.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Bonecount Arena — N1ghtmare Studios</title>
+<style>
+  :root{
+    --void:#07060b; --chrome:#0f0d16; --edge:#241f33;
+    --ink:#d9d3e6; --dim:#7b7391; --glow:#e0a154; --blood:#c8433a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--void); color:var(--ink); overflow:hidden;
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  canvas{display:block; touch-action:none}
+
+  .panel{
+    position:fixed; inset:0; display:none; z-index:5;
+    align-items:center; justify-content:center; padding:24px;
+    background:radial-gradient(120% 90% at 50% 40%, rgba(7,6,11,.6), rgba(7,6,11,.95));
+    backdrop-filter:blur(3px);
+  }
+  .panel.on{display:flex}
+  .card{
+    width:min(430px,100%); background:color-mix(in srgb, var(--chrome) 95%, transparent);
+    border:1px solid var(--edge); border-radius:16px; padding:22px 20px 20px; text-align:center;
+  }
+  h1{font:400 27px/1.1 "Iowan Old Style",Palatino,Georgia,serif;
+     letter-spacing:.15em; text-transform:uppercase; margin:0 0 4px}
+  h1 b{color:var(--glow); font-weight:400}
+  .sub{color:var(--dim); font-size:12px; letter-spacing:.14em;
+       text-transform:uppercase; margin:0 0 16px}
+  .big{font:700 44px/1 ui-sans-serif,system-ui,sans-serif; font-variant-numeric:tabular-nums}
+  .grade{font:400 19px/1.2 "Iowan Old Style",Palatino,Georgia,serif;
+         letter-spacing:.14em; text-transform:uppercase; color:var(--glow); margin:6px 0 12px}
+  .tally{display:flex; gap:14px; justify-content:center; color:var(--dim);
+         font-size:12.5px; letter-spacing:.08em; margin-bottom:16px}
+  .tally b{color:var(--ink); font-weight:700; font-variant-numeric:tabular-nums}
+
+  button, .btn{
+    appearance:none; background:none; border:1px solid var(--edge); color:var(--ink);
+    border-radius:10px; padding:13px 16px; font:600 12.5px/1 inherit;
+    letter-spacing:.12em; text-transform:uppercase; cursor:pointer; min-height:48px;
+    display:inline-flex; align-items:center; justify-content:center; text-decoration:none;
+  }
+  button.primary{background:var(--glow); border-color:var(--glow); color:#150f04; font-weight:700}
+  .row{display:flex; gap:9px; margin-top:6px}
+  .row > *{flex:1}
+
+  /* nivåval */
+  .perks{display:grid; gap:10px}
+  .perk{
+    text-align:left; padding:14px 16px; border:1px solid var(--edge); border-radius:12px;
+    background:#141020; cursor:pointer; transition:border-color .12s, background .12s;
+  }
+  .perk:active{border-color:var(--glow); background:#1b1528}
+  .perk h3{margin:0 0 3px; font:700 13.5px/1.2 inherit; letter-spacing:.1em;
+           text-transform:uppercase; color:var(--glow)}
+  .perk p{margin:0; font-size:12.5px; color:var(--dim); letter-spacing:.02em}
+
+  input{
+    width:100%; background:#171426; border:1px solid var(--edge); color:var(--ink);
+    border-radius:10px; padding:13px 14px; font:600 16px/1 inherit;
+    letter-spacing:.08em; outline:none; margin-bottom:9px; text-align:center;
+  }
+  input:focus{border-color:var(--glow)}
+  .board{margin:14px 0 4px; text-align:left}
+  .board h2{font:600 10.5px/1 inherit; letter-spacing:.2em; text-transform:uppercase;
+            color:var(--glow); margin:0 0 9px; display:flex; align-items:center; gap:10px}
+  .board h2::after{content:""; flex:1; height:1px; background:var(--edge)}
+  .board ol{list-style:none; margin:0; padding:0; font-variant-numeric:tabular-nums}
+  .board li{display:flex; gap:10px; padding:5px 0; font-size:13px;
+            border-bottom:1px solid rgba(36,31,51,.6)}
+  .board li span:first-child{color:var(--dim); width:20px}
+  .board li span:nth-child(2){flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .board .note{color:var(--dim); font-size:12px}
+
+  .back{position:fixed; top:calc(env(safe-area-inset-top,0px) + 12px); left:12px; z-index:6;
+        color:var(--dim); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+        text-decoration:none; padding:10px 12px}
+  body.playing .back{opacity:.35}
+</style>
+
+<canvas id="c"></canvas>
+<a class="back" href="/#games">&lsaquo; N1ghtmare Studios</a>
+
+<div class="panel on" id="startPanel">
+  <div class="card">
+    <h1>Bone<b>count</b> Arena</h1>
+    <p class="sub">Move only &middot; Free &middot; No install</p>
+    <p style="color:var(--dim); font-size:13.5px; margin:0 0 18px">
+      Drag anywhere to move — the soulfire picks its own targets. Walk over the
+      bones the dead leave behind; enough of them and you grow teeth. Stop
+      moving and you die.
+    </p>
+    <button class="primary" id="startBtn" style="width:100%">Enter the arena</button>
+    <div class="board" id="startBoard"></div>
+  </div>
+</div>
+
+<div class="panel" id="levelPanel">
+  <div class="card">
+    <p class="sub" style="margin-bottom:4px" id="lvlLabel">Level 2</p>
+    <p style="color:var(--dim); font-size:13px; margin:0 0 16px">Take one.</p>
+    <div class="perks" id="perkList"></div>
+  </div>
+</div>
+
+<div class="panel" id="overPanel">
+  <div class="card">
+    <p class="sub">You fell</p>
+    <div class="big" id="finalScore">0</div>
+    <p class="grade" id="finalGrade">Fodder</p>
+    <div class="tally">
+      <span>Survived <b id="tTime">0s</b></span>
+      <span>Bones <b id="tBones">0</b></span>
+      <span>Slain <b id="tKills">0</b></span>
+    </div>
+    <p class="sub" id="finalBest" style="margin-bottom:12px">Best 0</p>
+
+    <div id="submitWrap" style="display:none">
+      <input id="nameInput" maxlength="12" placeholder="YOUR NAME" autocomplete="off"
+             autocapitalize="characters" spellcheck="false">
+      <button class="primary" id="submitBtn" style="width:100%">Submit score</button>
+    </div>
+
+    <div class="row" style="margin-bottom:0">
+      <button class="primary" id="againBtn">Again</button>
+      <a class="btn" href="/#games">Back</a>
+    </div>
+    <div class="board" id="lb"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const API = "";              // sätts när topplistans Worker är uppe
+const GAME = "arena";
+const LS_BEST = "arena_best", LS_NAME = "wisp_name";
+
+const cvs = document.getElementById("c"), ctx = cvs.getContext("2d");
+let W = 0, H = 0, dpr = 1;
+function resize(){
+  W = innerWidth; H = innerHeight;
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
+  cvs.style.width = W + "px"; cvs.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener("resize", resize);
+resize();
+
+/* ── tillstånd ───────────────────────────────────────────────────── */
+let state = "menu";                       // menu | play | level | dead
+let P, foes, shots, bones, bits, orbs;
+let t, wave, nextSpawn, kills, boneCount, score, shake, flash, banner, tPrev;
+let best = 0;
+try { best = (+localStorage.getItem(LS_BEST)) || 0; } catch(e){}
+
+function reset(){
+  P = { x: W/2, y: H/2, r: 11, hp: 100, hpMax: 100, spd: 172,
+        dmg: 12, rate: 0.52, cool: 0, shots: 1, pierce: 0, pickup: 78,
+        xp: 0, need: 4, lvl: 1, inv: 0, orbit: 0 };
+  foes = []; shots = []; bones = []; bits = []; orbs = 0;
+  t = 0; wave = 1; nextSpawn = 0; kills = 0; boneCount = 0; score = 0;
+  shake = 0; flash = 0; banner = null;
+}
+
+/* ── fiender ─────────────────────────────────────────────────────── */
+const FOES = {
+  bone:  { hp: 20,  spd: 44,  r: 10, dmg: 12, pay: 1, col: "#d8d2c4" },
+  runner:{ hp: 15,  spd: 104, r: 8,  dmg: 10, pay: 1, col: "#a98fd0" },
+  brute: { hp: 78,  spd: 30,  r: 17, dmg: 20, pay: 3, col: "#6fae62" },
+  boss:  { hp: 420, spd: 34,  r: 27, dmg: 28, pay: 12, col: "#c8433a" },
+};
+function spawn(kind){
+  const s = FOES[kind];
+  // kliver in från utanför kanten, aldrig ovanpå spelaren
+  const side = Math.floor(Math.random()*4), m = 40;
+  let x, y;
+  if (side === 0){ x = Math.random()*W; y = -m; }
+  else if (side === 1){ x = W + m; y = Math.random()*H; }
+  else if (side === 2){ x = Math.random()*W; y = H + m; }
+  else { x = -m; y = Math.random()*H; }
+  foes.push({ kind, x, y, hp: s.hp, hpMax: s.hp, r: s.r, spd: s.spd,
+              dmg: s.dmg, pay: s.pay, col: s.col, hit: 0, kx: 0, ky: 0 });
+}
+function waveMix(){
+  const r = Math.random();
+  if (t > 60  && r < 0.20) return "brute";
+  if (t > 22  && r < 0.38) return "runner";
+  if (t > 140 && r < 0.34) return "brute";
+  return "bone";
+}
+
+/* ── förmågor ────────────────────────────────────────────────────── */
+const PERKS = [
+  { id:"shots",  name:"Split soul",   info:"One more bolt each volley",
+    take:()=>{ P.shots++; } },
+  { id:"rate",   name:"Quick hand",   info:"Fire 18% faster",
+    take:()=>{ P.rate *= 0.82; } },
+  { id:"dmg",    name:"Sharp intent", info:"+6 damage per bolt",
+    take:()=>{ P.dmg += 6; } },
+  { id:"pierce", name:"Through and through", info:"Bolts pass through one more foe",
+    take:()=>{ P.pierce++; } },
+  { id:"spd",    name:"Light feet",   info:"+14% movement speed",
+    take:()=>{ P.spd *= 1.14; } },
+  { id:"pickup", name:"Gravekeeper",  info:"Pull bones from much further",
+    take:()=>{ P.pickup *= 1.55; } },
+  { id:"hp",     name:"Old scars",    info:"+30 max health, and heal it",
+    take:()=>{ P.hpMax += 30; P.hp = Math.min(P.hpMax, P.hp + 30); } },
+  { id:"orbit",  name:"Bone circle",  info:"A shard orbits and grinds what it meets",
+    take:()=>{ orbs++; } },
+];
+function offerPerks(){
+  state = "level";
+  const pool = PERKS.slice();
+  const pick = [];
+  while (pick.length < 3 && pool.length) pick.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  const list = document.getElementById("perkList");
+  list.innerHTML = "";
+  for (const perk of pick){
+    const el = document.createElement("div");
+    el.className = "perk";
+    el.innerHTML = "<h3>" + perk.name + "</h3><p>" + perk.info + "</p>";
+    el.onclick = () => { perk.take(); document.getElementById("levelPanel").classList.remove("on"); state = "play"; };
+    list.appendChild(el);
+  }
+  document.getElementById("lvlLabel").textContent = "Level " + P.lvl;
+  document.getElementById("levelPanel").classList.add("on");
+}
+
+/* ── styrning ────────────────────────────────────────────────────── */
+const keys = {};
+let stick = null;                          // {ox, oy, dx, dy}
+addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; });
+addEventListener("keyup",   e => { keys[e.key.toLowerCase()] = false; });
+cvs.addEventListener("pointerdown", e => {
+  if (state !== "play") return;
+  cvs.setPointerCapture(e.pointerId);
+  stick = { ox: e.clientX, oy: e.clientY, dx: 0, dy: 0 };
+});
+cvs.addEventListener("pointermove", e => {
+  if (!stick) return;
+  let dx = e.clientX - stick.ox, dy = e.clientY - stick.oy;
+  const d = Math.hypot(dx, dy), max = 54;
+  if (d > max){ dx = dx/d*max; dy = dy/d*max; }
+  // greppet får glida med så tummen aldrig går i taket
+  if (d > max * 1.6){ stick.ox = e.clientX - dx; stick.oy = e.clientY - dy; }
+  stick.dx = dx; stick.dy = dy;
+});
+const drop = () => { stick = null; };
+addEventListener("pointerup", drop);
+addEventListener("pointercancel", drop);
+
+function input(){
+  let dx = 0, dy = 0;
+  if (stick){ dx = stick.dx / 54; dy = stick.dy / 54; }
+  if (keys.a || keys.arrowleft)  dx -= 1;
+  if (keys.d || keys.arrowright) dx += 1;
+  if (keys.w || keys.arrowup)    dy -= 1;
+  if (keys.s || keys.arrowdown)  dy += 1;
+  const d = Math.hypot(dx, dy);
+  return d > 1 ? { x: dx/d, y: dy/d } : { x: dx, y: dy };
+}
+
+/* ── partiklar ───────────────────────────────────────────────────── */
+function puff(x, y, n, col, power){
+  for (let i = 0; i < n; i++)
+    bits.push({ x, y, vx:(Math.random()-.5)*260*power, vy:(Math.random()-.5)*260*power,
+                r: 1+Math.random()*2.4, life:.3+Math.random()*.45, age:0, col });
+}
+
+/* ── uppdatering ─────────────────────────────────────────────────── */
+function update(dt){
+  for (let i = bits.length-1; i>=0; i--){
+    const b = bits[i]; b.age += dt;
+    if (b.age > b.life){ bits.splice(i,1); continue; }
+    b.x += b.vx*dt; b.y += b.vy*dt; b.vx *= .93; b.vy *= .93;
+  }
+  if (shake > 0) shake = Math.max(0, shake - dt*3);
+  if (flash > 0) flash = Math.max(0, flash - dt*2.6);
+  if (banner){ banner.age += dt; if (banner.age > 1.8) banner = null; }
+  if (state !== "play") return;
+
+  t += dt;
+  const w2 = 1 + Math.floor(t / 30);
+  if (w2 !== wave){ wave = w2; banner = { text: "WAVE " + wave, age: 0 };
+    if (wave % 3 === 0) spawn("boss"); }
+
+  // ── spelaren
+  const mv = input();
+  P.x = Math.max(P.r, Math.min(W - P.r, P.x + mv.x * P.spd * dt));
+  P.y = Math.max(P.r, Math.min(H - P.r, P.y + mv.y * P.spd * dt));
+  if (P.inv > 0) P.inv -= dt;
+
+  // ── spawn
+  nextSpawn -= dt;
+  if (nextSpawn <= 0){
+    const per = 1 + Math.floor(t / 45);
+    for (let i = 0; i < per; i++) spawn(waveMix());
+    nextSpawn = Math.max(0.42, 1.35 - t * 0.005);
+  }
+
+  // ── skott
+  P.cool -= dt;
+  if (P.cool <= 0 && foes.length){
+    let near = null, nd = 1e9;
+    for (const f of foes){
+      const d = (f.x-P.x)**2 + (f.y-P.y)**2;
+      if (d < nd){ nd = d; near = f; }
+    }
+    if (near){
+      const base = Math.atan2(near.y-P.y, near.x-P.x);
+      for (let i = 0; i < P.shots; i++){
+        const a = base + (i - (P.shots-1)/2) * 0.16;
+        shots.push({ x:P.x, y:P.y, vx:Math.cos(a)*430, vy:Math.sin(a)*430,
+                     dmg:P.dmg, pierce:P.pierce, hitSet:new Set(), life:1.5 });
+      }
+      P.cool = P.rate;
+    }
+  }
+  for (let i = shots.length-1; i>=0; i--){
+    const s = shots[i];
+    s.x += s.vx*dt; s.y += s.vy*dt; s.life -= dt;
+    if (s.life <= 0 || s.x<-30||s.y<-30||s.x>W+30||s.y>H+30){ shots.splice(i,1); continue; }
+    for (const f of foes){
+      if (s.hitSet.has(f)) continue;
+      if ((f.x-s.x)**2 + (f.y-s.y)**2 < (f.r+4)**2){
+        hurt(f, s.dmg, s.vx, s.vy);
+        s.hitSet.add(f);
+        if (s.hitSet.size > s.pierce){ shots.splice(i,1); break; }
+      }
+    }
+  }
+
+  // ── benkretsar
+  for (let k = 0; k < orbs; k++){
+    const a = t * 2.4 + k * (6.2832 / Math.max(1, orbs));
+    const ox = P.x + Math.cos(a) * 62, oy = P.y + Math.sin(a) * 62;
+    for (const f of foes)
+      if ((f.x-ox)**2 + (f.y-oy)**2 < (f.r+8)**2 && f.hit <= 0)
+        hurt(f, 9, Math.cos(a)*300, Math.sin(a)*300);
+  }
+
+  // ── fiender
+  for (let i = foes.length-1; i>=0; i--){
+    const f = foes[i];
+    if (f.hit > 0) f.hit -= dt;
+    const dx = P.x-f.x, dy = P.y-f.y, d = Math.hypot(dx,dy) || 1;
+    f.x += (dx/d)*f.spd*dt + f.kx*dt;
+    f.y += (dy/d)*f.spd*dt + f.ky*dt;
+    f.kx *= .86; f.ky *= .86;
+    if (f.hp <= 0){
+      kills++;
+      puff(f.x, f.y, f.kind==="boss"?34:10, f.col, f.kind==="boss"?1.6:1);
+      for (let k = 0; k < f.pay; k++)
+        bones.push({ x:f.x+(Math.random()-.5)*18, y:f.y+(Math.random()-.5)*18, vx:0, vy:0 });
+      if (f.kind === "boss"){ shake = 1; flash = .8; }
+      foes.splice(i,1); continue;
+    }
+    if (d < f.r + P.r && P.inv <= 0){
+      P.hp -= f.dmg; P.inv = .7; shake = .7; flash = .55;
+      puff(P.x, P.y, 12, "#c8433a", 1.1);
+      if (P.hp <= 0){ die(); return; }
+    }
+  }
+
+  // ── ben
+  for (let i = bones.length-1; i>=0; i--){
+    const b = bones[i];
+    const dx = P.x-b.x, dy = P.y-b.y, d = Math.hypot(dx,dy) || 1;
+    // Bultarna dödar på håll, så benen faller långt bort. De söker sig
+    // därför sakta mot spelaren jämt, och rycks in när man är nära.
+    const pull = d < P.pickup ? 820 : 110;
+    b.vx += (dx/d)*pull*dt; b.vy += (dy/d)*pull*dt;
+    b.x += b.vx*dt; b.y += b.vy*dt; b.vx *= .93; b.vy *= .93;
+    if (d < P.r + 8){
+      bones.splice(i,1); boneCount++; P.xp++;
+      if (P.xp >= P.need){ P.xp -= P.need; P.need = Math.round(P.need*1.3)+1; P.lvl++; offerPerks(); }
+    }
+  }
+}
+function hurt(f, dmg, vx, vy){
+  f.hp -= dmg; f.hit = .09;
+  const d = Math.hypot(vx,vy) || 1;
+  f.kx += vx/d * (f.kind==="boss" ? 40 : 170);
+  f.ky += vy/d * (f.kind==="boss" ? 40 : 170);
+  puff(f.x, f.y, 3, f.col, .5);
+}
+
+/* ── ritning ─────────────────────────────────────────────────────── */
+function draw(){
+  ctx.save();
+  ctx.fillStyle = "#07060b"; ctx.fillRect(0,0,W,H);
+  if (shake) ctx.translate((Math.random()-.5)*11*shake, (Math.random()-.5)*11*shake);
+
+  // golv
+  const g = ctx.createRadialGradient(W/2,H/2,0, W/2,H/2, Math.max(W,H)*.75);
+  g.addColorStop(0,"#12101f"); g.addColorStop(1,"#08070d");
+  ctx.fillStyle = g; ctx.fillRect(-20,-20,W+40,H+40);
+  ctx.strokeStyle = "rgba(60,52,86,.16)"; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 48){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 48){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  ctx.globalCompositeOperation = "lighter";
+  // ben
+  for (const b of bones){
+    const gg = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,11);
+    gg.addColorStop(0,"rgba(255,214,140,.95)"); gg.addColorStop(1,"rgba(224,161,84,0)");
+    ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(b.x,b.y,11,0,6.2832); ctx.fill();
+  }
+  // partiklar
+  for (const b of bits){
+    const a = (1-b.age/b.life)*.8;
+    ctx.fillStyle = hexA(b.col, a);
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r*1.8,0,6.2832); ctx.fill();
+  }
+  // skott
+  for (const s of shots){
+    const gg = ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,10);
+    gg.addColorStop(0,"rgba(255,232,190,.95)"); gg.addColorStop(1,"rgba(224,161,84,0)");
+    ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(s.x,s.y,10,0,6.2832); ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  // fiender
+  for (const f of foes){
+    ctx.fillStyle = f.hit > 0 ? "#fff" : f.col;
+    ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,6.2832); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,.35)";
+    ctx.beginPath(); ctx.arc(f.x - f.r*.28, f.y - f.r*.2, f.r*.2, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.arc(f.x + f.r*.28, f.y - f.r*.2, f.r*.2, 0, 6.2832); ctx.fill();
+    if (f.hp < f.hpMax){
+      ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(f.x-f.r, f.y-f.r-7, f.r*2, 3);
+      ctx.fillStyle = "#c8433a";
+      ctx.fillRect(f.x-f.r, f.y-f.r-7, f.r*2*(f.hp/f.hpMax), 3);
+    }
+  }
+
+  // benkretsar
+  ctx.globalCompositeOperation = "lighter";
+  for (let k = 0; k < orbs; k++){
+    const a = t*2.4 + k*(6.2832/Math.max(1,orbs));
+    const ox = P.x+Math.cos(a)*62, oy = P.y+Math.sin(a)*62;
+    const gg = ctx.createRadialGradient(ox,oy,0,ox,oy,14);
+    gg.addColorStop(0,"rgba(235,228,210,.9)"); gg.addColorStop(1,"rgba(216,210,196,0)");
+    ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(ox,oy,14,0,6.2832); ctx.fill();
+  }
+  // spelaren
+  if (state !== "dead"){
+    const pulse = P.inv > 0 && (Math.floor(t*20)%2===0) ? .35 : 1;
+    const gg = ctx.createRadialGradient(P.x,P.y,0,P.x,P.y,34);
+    gg.addColorStop(0,"rgba(255,226,170,"+(.55*pulse)+")");
+    gg.addColorStop(1,"rgba(224,161,84,0)");
+    ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(P.x,P.y,34,0,6.2832); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(255,244,224,"+pulse+")";
+    ctx.beginPath(); ctx.arc(P.x,P.y,P.r,0,6.2832); ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  // styrspak
+  if (stick){
+    ctx.strokeStyle = "rgba(224,161,84,.28)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(stick.ox, stick.oy, 54, 0, 6.2832); ctx.stroke();
+    ctx.fillStyle = "rgba(224,161,84,.35)";
+    ctx.beginPath(); ctx.arc(stick.ox+stick.dx, stick.oy+stick.dy, 20, 0, 6.2832); ctx.fill();
+  }
+  ctx.restore();
+
+  if (flash){ ctx.fillStyle = "rgba(200,67,58," + (flash*.28) + ")"; ctx.fillRect(0,0,W,H); }
+
+  // HUD
+  if (state === "play" || state === "level"){
+    const pad = 14, top = 46;
+    ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(pad, top, W-pad*2, 8);
+    ctx.fillStyle = "#c8433a";
+    ctx.fillRect(pad, top, (W-pad*2) * Math.max(0,P.hp/P.hpMax), 8);
+    ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(pad, top+11, W-pad*2, 4);
+    ctx.fillStyle = "#e0a154";
+    ctx.fillRect(pad, top+11, (W-pad*2) * (P.xp/P.need), 4);
+
+    ctx.font = "700 13px ui-sans-serif,system-ui,sans-serif";
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(240,230,212,.92)";
+    ctx.fillText("LV " + P.lvl, pad, top+24);
+    ctx.textAlign = "center";
+    ctx.fillText(fmt(t), W/2, top+24);
+    ctx.textAlign = "right";
+    ctx.fillText(kills + " SLAIN   " + boneCount + " BONES", W-pad, top+24);
+    ctx.textAlign = "left";
+  }
+  if (banner){
+    const a = banner.age < .3 ? banner.age/.3 : Math.max(0, 1-(banner.age-.3)/1.5);
+    ctx.font = "700 34px ui-sans-serif,system-ui,sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(224,161,84," + a + ")";
+    ctx.fillText(banner.text, W/2, H*0.3);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  }
+}
+function hexA(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return "rgba(" + (n>>16&255) + "," + (n>>8&255) + "," + (n&255) + "," + a + ")";
+}
+const fmt = s => Math.floor(s/60) + ":" + String(Math.floor(s%60)).padStart(2,"0");
+
+/* ── slinga ──────────────────────────────────────────────────────── */
+function loop(now){
+  requestAnimationFrame(loop);
+  if (tPrev === undefined) tPrev = now;
+  const dt = Math.min(0.033, (now - tPrev)/1000); tPrev = now;
+  update(dt); draw();
+}
+reset(); requestAnimationFrame(loop);
+
+/* ── slut ────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+function grade(v){
+  if (v >= 4000) return "Bonelord";
+  if (v >= 2400) return "Reaper";
+  if (v >= 1300) return "Gravewalker";
+  if (v >= 600)  return "Survivor";
+  return "Fodder";
+}
+function die(){
+  state = "dead";
+  document.body.classList.remove("playing");
+  puff(P.x, P.y, 40, "#e0a154", 1.6);
+  shake = 1; flash = 1;
+  score = Math.round(t * 10) + boneCount * 12 + kills * 5;
+  const isNew = score > best;
+  if (isNew){ best = score; try { localStorage.setItem(LS_BEST, best); } catch(e){} }
+  $("finalScore").textContent = score;
+  $("finalGrade").textContent = grade(score);
+  $("tTime").textContent = fmt(t);
+  $("tBones").textContent = boneCount;
+  $("tKills").textContent = kills;
+  $("finalBest").innerHTML = isNew ? '<span style="color:var(--glow)">New best</span>' : "Best " + best;
+  const wrap = $("submitWrap");
+  wrap.style.display = (API && score > 0) ? "block" : "none";
+  if (API){
+    try { $("nameInput").value = localStorage.getItem(LS_NAME) || ""; } catch(e){}
+    $("submitBtn").disabled = false; $("submitBtn").textContent = "Submit score";
+  }
+  $("overPanel").classList.add("on");
+  loadBoard("lb");
+}
+function startGame(){
+  reset(); state = "play"; stick = null;
+  document.body.classList.add("playing");
+  $("startPanel").classList.remove("on");
+  $("overPanel").classList.remove("on");
+  banner = { text: "WAVE 1", age: 0 };
+}
+$("startBtn").onclick = startGame;
+$("againBtn").onclick = startGame;
+
+/* ── topplista ───────────────────────────────────────────────────── */
+const esc = s => String(s).replace(/[<>&"]/g, c =>
+  ({ "<":"&lt;", ">":"&gt;", "&":"&amp;", '"':"&quot;" }[c]));
+async function loadBoard(id){
+  const el = $(id);
+  if (!API){
+    el.innerHTML = '<h2>Best</h2><p class="note">Your best: ' + best +
+                   '. A shared leaderboard is coming.</p>';
+    return;
+  }
+  el.innerHTML = '<h2>Leaderboard</h2><p class="note">Loading…</p>';
+  try {
+    const rows = await (await fetch(API + "/top?game=" + GAME, { cache:"no-store" })).json();
+    el.innerHTML = "<h2>Leaderboard</h2>" + (rows.length
+      ? "<ol>" + rows.slice(0,10).map((x,i) =>
+          "<li><span>"+(i+1)+"</span><span>"+esc(x.name)+"</span><span>"+x.score+"</span></li>"
+        ).join("") + "</ol>"
+      : '<p class="note">Nobody has walked out yet.</p>');
+  } catch(e){
+    el.innerHTML = '<h2>Leaderboard</h2><p class="note">Offline — your best: ' + best + "</p>";
+  }
+}
+$("submitBtn").onclick = async () => {
+  const name = ($("nameInput").value || "").trim().slice(0,12);
+  if (!name){ $("nameInput").focus(); return; }
+  try { localStorage.setItem(LS_NAME, name); } catch(e){}
+  const btn = $("submitBtn");
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    await fetch(API + "/score?game=" + GAME, {
+      method:"POST", headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ name, score })
+    });
+    btn.textContent = "Submitted";
+    $("submitWrap").style.display = "none";
+    loadBoard("lb");
+  } catch(e){ btn.disabled = false; btn.textContent = "Try again"; }
+};
+
+if (location.hash === "#debug")
+  window.__arena = { get P(){return P;}, get foes(){return foes;}, get t(){return t;},
+                     get state(){return state;}, get kills(){return kills;},
+                     get bones(){return boneCount;}, get lvl(){return P.lvl;},
+                     move: (x,y)=>{ P.x=x; P.y=y; }, godHp: ()=>{ P.hp = P.hpMax = 99999; } };
+
+loadBoard("startBoard");
+})();
+</script>
