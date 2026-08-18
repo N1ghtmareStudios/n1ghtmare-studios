@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Prompt Forge — N1ghtmare internal</title>
+<title>Prompt Forge | N1ghtmare internal</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%230a0d14'/><text x='32' y='45' font-family='Georgia,serif' font-size='32' font-weight='bold' text-anchor='middle' fill='%23c8922f'>⚒</text></svg>">
 <style>
 :root{
@@ -65,7 +65,7 @@ summary{cursor:pointer; color:var(--ink-soft); font-size:13px}
 <body>
 <div class="wrap">
   <h1>Prompt <b>Forge</b></h1>
-  <p class="sub">Internal tool — paste an order, get finished Warpack art prompts in the house style.</p>
+  <p class="sub">Internal tool. Paste an order, get finished Warpack art prompts in the house style.</p>
 
   <h2>AI Forge</h2>
   <p class="h2sub">Paste a raw list ("Items missing art: - The Final Word (finalword) — faction: shared, rarity: Epic...") and get one polished prompt per item.</p>
@@ -83,14 +83,14 @@ summary{cursor:pointer; color:var(--ink-soft); font-size:13px}
     <div>
       <label for="model">Model</label>
       <select id="model">
-        <option value="claude-opus-5">Claude Opus 5 — best</option>
-        <option value="claude-sonnet-5">Claude Sonnet 5 — fast</option>
-        <option value="claude-haiku-4-5">Claude Haiku 4.5 — cheapest</option>
+        <option value="claude-opus-5">Claude Opus 5 (best)</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5 (fast)</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5 (cheapest)</option>
       </select>
     </div>
   </div>
 
-  <label for="order">The order — paste your list</label>
+  <label for="order">The order: paste your list</label>
   <textarea id="order" placeholder="Items missing art (43 of 203):&#10;&#10;- The Final Word (finalword) — faction: shared, rarity: Epic, tags: focus/arcane&#10;- Bloodchant Fetish (bloodchant) — faction: bloodhorde, rarity: Rare, tags: arcane/beast&#10;..."></textarea>
 
   <label for="key">Anthropic API key (stored only in this browser)</label>
@@ -103,13 +103,13 @@ summary{cursor:pointer; color:var(--ink-soft); font-size:13px}
 
   <p class="hint">
     Key comes from <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>
-    (API billing is separate from the Claude apps — $5 minimum credit). A 40-item batch costs
+    (API billing is separate from the Claude apps; $5 minimum credit). A 40-item batch costs
     a few cents on Opus, fractions of a cent on Haiku. The key is saved in
     <code>localStorage</code> on this device only and is sent only to <code>api.anthropic.com</code>.
   </p>
 
   <h2>Manual assembler</h2>
-  <p class="h2sub">No AI, no key — wraps your own sentence in the right template. Works offline.</p>
+  <p class="h2sub">No AI, no key. Wraps your own sentence in the right template. Works offline.</p>
   <details id="manual">
     <summary>Open the manual tool</summary>
     <div class="row" style="margin-top:10px">
@@ -132,7 +132,7 @@ summary{cursor:pointer; color:var(--ink-soft); font-size:13px}
         </select>
       </div>
     </div>
-    <label for="mdesc">Describe it — one sentence</label>
+    <label for="mdesc">Describe it in one sentence</label>
     <textarea id="mdesc"></textarea>
     <div id="mout">—</div>
     <button id="mcopy">COPY</button>

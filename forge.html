@@ -2,10 +2,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07060b">
-<meta name="description" content="Forge — a free timing game from N1ghtmare Studios. Strike the hot steel on the beat and see what blade you end up with.">
+<meta name="description" content="Forge: a free timing game from N1ghtmare Studios. Strike the hot steel on the beat and see what blade you end up with.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<title>Forge — N1ghtmare Studios</title>
+<title>Forge | N1ghtmare Studios</title>
 <link rel="stylesheet" href="/fonts/charter.css">
 <style>
   :root{
@@ -90,7 +90,7 @@
     <h1>F<b>o</b>rge</h1>
     <p class="sub">One button &middot; Free &middot; No install</p>
     <p style="color:var(--dim); font-size:13.5px; margin:0 0 18px">
-      The hammer falls where you tell it. Strike inside the hot band —
+      The hammer falls where you tell it. Strike inside the hot band, and
       the closer to its heart, the truer the steel. Three ruined blows
       and the blade cracks for good.
     </p>
@@ -440,7 +440,7 @@ const esc = s => String(s).replace(/[<>&"]/g, c =>
   ({ "<":"&lt;", ">":"&gt;", "&":"&amp;", '"':"&quot;" }[c]));
 
 function boardHTML(rows){
-  if (!rows.length) return '<p class="note">No blades yet — forge the first.</p>';
+  if (!rows.length) return '<p class="note">No blades yet. Forge the first.</p>';
   return "<ol>" + rows.map((r, i) =>
     '<li class="' + (myEntry && r.name === myEntry.name && r.score === myEntry.score ? "me" : "") +
     '"><span>' + (i+1) + "</span><span>" + esc(r.name) + "</span><span>" + r.score +
@@ -458,7 +458,7 @@ async function loadBoard(id){
     const r = await fetch(API + "/top?game=" + GAME, { cache: "no-store" });
     el.innerHTML = "<h2>Leaderboard</h2>" + boardHTML((await r.json()).slice(0, 10));
   } catch(e){
-    el.innerHTML = '<h2>Leaderboard</h2><p class="note">Offline — your best: ' + best + "</p>";
+    el.innerHTML = '<h2>Leaderboard</h2><p class="note">Offline, your best: ' + best + "</p>";
   }
 }
 $("submitBtn").onclick = async () => {
