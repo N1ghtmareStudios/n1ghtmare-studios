@@ -110,14 +110,18 @@ a:focus-visible, .btn:focus-visible{outline:2px solid var(--gold); outline-offse
   filter:drop-shadow(0 6px 26px rgba(0,0,0,.65)); user-select:none;
 }
 @media (prefers-reduced-motion:no-preference){
-  .hero .mark{animation:markRise 1.1s cubic-bezier(.2,.7,.3,1) both}
+  .hero .mark{animation:markRise 2.8s cubic-bezier(.16,.75,.24,1) .25s both}
 }
-@keyframes markRise{from{opacity:0; transform:translateY(10px) scale(.97)}to{opacity:1; transform:none}}
+@keyframes markRise{
+  from{opacity:0; transform:translateY(22px) scale(.93); filter:blur(3px) drop-shadow(0 6px 26px rgba(0,0,0,.65))}
+  60% {opacity:.72}
+  to  {opacity:1; transform:none; filter:blur(0) drop-shadow(0 6px 26px rgba(0,0,0,.65))}
+}
 .hero h1, .hero .title-glow{
   font:400 clamp(32px,7.4vw,62px)/1.05 var(--display);
   letter-spacing:.07em; text-transform:uppercase; margin:0; text-wrap:balance;
 }
-.hero h1 em{font-style:normal; color:var(--gold)}
+.hero h1 em{font-style:normal; color:#dcae52}
 
 /* titeln: en ljuskägla som sveper över bokstäverna. En kopia av rubriken
    ligger exakt ovanpå, tänd och glödande, men maskad till en mjuk cirkel
@@ -125,8 +129,8 @@ a:focus-visible, .btn:focus-visible{outline:2px solid var(--gold); outline-offse
 .title{position:relative; display:block}
 /* rubriken vilar dämpad medan ljuset är i rörelse — men bara när
    effekten faktiskt är igång, så en sida utan JS behåller full titel */
-.hero.lit h1{color:#cfd3d8; transition:color 1.2s ease}
-.hero.lit h1 em{color:#9a742e}
+.hero.lit h1{color:#e3dccb; transition:color 1.2s ease}
+.hero.lit h1 em{color:#dcae52}
 .title-glow{
   --lx:50%; --ly:50%; --lr:clamp(100px,24vw,260px);
   /* lagret sträcks ut förbi texten och får tillbaka skillnaden som
@@ -667,7 +671,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
   var hero = cvs.closest('.hero'), ctx = cvs.getContext('2d');
   if (!ctx) return;
 
-  var W = 0, H = 0, puffs = [], visible = true, last = 0, lastW = 0;
+  var W = 0, H = 0, puffs = [], drops = [], visible = true, last = 0, lastW = 0;
 
   function build(){
     var r = hero.getBoundingClientRect();
@@ -690,6 +694,26 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       });
     }
     puffs.sort(function(p, q){ return p.y - q.y; });
+
+    /* Tunt regn. Antalet skalas med ytan sa det ser lika glest ut pa
+       telefon som pa bred skarm. Halls medvetet svagt: det ska anas,
+       inte markas.                                                    */
+    drops = [];
+    var n = Math.round(Math.min(150, Math.max(38, W * H / 9000)));
+    for (var d = 0; d < n; d++) drops.push(newDrop(true));
+  }
+
+  function newDrop(anywhere){
+    var deep = Math.random();                  // 0 = langt bort, 1 = nara
+    var spd  = 620 + deep * 780;
+    return {
+      x: Math.random() * (W + 160) - 80,
+      y: anywhere ? Math.random() * H : -30 - Math.random() * H * 0.4,
+      s: spd,
+      len: 9 + deep * 24,
+      a: 0.045 + deep * 0.075,
+      w: 0.6 + deep * 0.5
+    };
   }
 
   function frame(now){
@@ -717,6 +741,24 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       ctx.beginPath(); ctx.arc(p.x, y, p.rx, 0, 6.2832); ctx.fill();
       ctx.restore();
     }
+    /* Regnet ritas efter dimman, fortfarande additivt men mycket svagt.
+       Lutningen ar liten sa det last som stilla duggregn, inte storm.  */
+    ctx.lineCap = 'round';
+    for (var r = 0; r < drops.length; r++){
+      var q = drops[r];
+      q.y += q.s * dt;
+      q.x += q.s * dt * 0.16;                  // svag vind fran vanster
+      if (q.y - q.len > H || q.x - q.len > W + 80){
+        drops[r] = newDrop(false); continue;
+      }
+      ctx.strokeStyle = 'rgba(206,216,232,' + q.a + ')';
+      ctx.lineWidth = q.w;
+      ctx.beginPath();
+      ctx.moveTo(q.x, q.y);
+      ctx.lineTo(q.x - q.len * 0.16, q.y - q.len);
+      ctx.stroke();
+    }
+
     ctx.globalCompositeOperation = 'source-over';
   }
 
