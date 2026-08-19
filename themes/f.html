@@ -1,0 +1,148 @@
+<!doctype html><html lang="sv"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tema f: ASKA (ljusare) | N1ghtmare Studios</title>
+<link rel="stylesheet" href="/fonts/charter.css">
+<style>
+:root{
+  --ground:#18181a; --raised:#232326; --rule:#36363a;
+  --ink:#e7e4db; --ink-soft:#a5a5a8; --gold:#c8922f;
+  --display:Charter,"Iowan Old Style",Georgia,serif;
+  --body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font:16px/1.6 var(--body);-webkit-font-smoothing:antialiased}
+.switch{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:2px;
+  background:color-mix(in srgb,var(--ground) 92%,transparent);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--rule);padding:8px 10px}
+.switch a{color:var(--ink-soft);text-decoration:none;font:600 11px/1 var(--body);
+  letter-spacing:.12em;text-transform:uppercase;padding:8px 11px;
+  border:1px solid transparent;border-radius:5px}
+.switch a:hover{color:var(--ink);border-color:var(--rule)}
+.switch a.f{color:var(--gold);border-color:var(--rule);background:var(--raised)}
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--rule)}
+.hero-art{position:absolute;inset:0;
+  background:url(/press/images/n1ghtmare-studios-hero-art-soulsmith.jpg) center/cover;
+  opacity:.24;filter:grayscale(.3) contrast(1.05);
+  animation:drift 38s ease-in-out infinite alternate}
+@keyframes drift{from{transform:scale(1.02)}to{transform:scale(1.09) translateY(-1.5%)}}
+.hero-veil{position:absolute;inset:0;
+  background:radial-gradient(120% 90% at 50% 32%,transparent,var(--ground) 76%)}
+canvas.sim{position:absolute;inset:0;width:100%;height:100%;display:block}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;
+  padding:clamp(52px,10vw,92px) 22px;text-align:center}
+.mark{display:block;width:clamp(96px,15vw,148px);height:auto;margin:0 auto 14px;
+  filter:drop-shadow(0 6px 26px rgba(0,0,0,.65))}
+h1{font:400 clamp(32px,7.4vw,62px)/1.05 var(--display);letter-spacing:.07em;
+  text-transform:uppercase;margin:0;color:#e3dccb}
+h1 em{font-style:normal;color:#dcae52}
+.crest{display:flex;align-items:center;justify-content:center;gap:14px;margin:20px 0 18px}
+.crest span{width:64px;height:1px;background:var(--rule)}
+.crest i{width:7px;height:7px;background:var(--gold);transform:rotate(45deg)}
+.motto{font:400 clamp(20px,3.6vw,29px)/1.4 var(--display);margin:0 0 14px;color:var(--ink)}
+.motto b{display:block;font-weight:400;color:var(--gold)}
+.lede{color:var(--ink-soft);max-width:52ch;margin:0 auto;font-size:clamp(15px,2.3vw,17px)}
+.sec{max-width:1080px;margin:0 auto;padding:46px 22px}
+.eyebrow{font:600 11px/1 var(--body);letter-spacing:.20em;text-transform:uppercase;
+  color:var(--ink-soft);margin:0 0 14px}
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.card{background:var(--raised);border:1px solid var(--rule);border-radius:8px;padding:18px}
+.card h3{font:400 20px/1.2 var(--display);margin:0 0 6px}
+.card p{margin:0;color:var(--ink-soft);font-size:14px}
+.tag{display:inline-block;border:1px solid var(--gold);color:var(--gold);border-radius:99px;
+  padding:5px 11px;font:600 10px/1 var(--body);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:12px}
+.note{border-top:1px solid var(--rule);margin-top:34px;padding-top:18px;
+  color:var(--ink-soft);font-size:13.5px;line-height:2}
+code{background:var(--raised);border:1px solid var(--rule);border-radius:4px;
+  padding:2px 6px;font-size:12.5px}
+</style></head><body>
+<nav class="switch"><a href="a.html" class="a">BLA</a><a href="b.html" class="b">VARM GRA</a><a href="c.html" class="c">SLAGG</a><a href="d.html" class="d">GLOD</a><a href="e.html" class="e">NATT</a><a href="f.html" class="f">ASKA</a></nav>
+<header class="hero">
+  <div class="hero-art"></div><div class="hero-veil"></div>
+  <canvas class="sim"></canvas>
+  <div class="wrap">
+    <img class="mark" src="/press/images/n1ghtmare-studios-logo.webp" alt=""
+         width="320" height="320" decoding="async">
+    <h1>N1ghtmare <em>Studios</em></h1>
+    <div class="crest"><span></span><i></i><span></span></div>
+    <p class="motto">Made in the dark.<b>Bring a light.</b></p>
+    <p class="lede">An independent game studio from Sweden, building dark fantasy games
+       with deep systems and hard choices.</p>
+  </div>
+</header>
+<section class="sec">
+  <p class="eyebrow">Tema f &middot; ASKA (ljusare)</p>
+  <p style="max-width:62ch;margin:0 0 26px;color:var(--ink-soft)">Ljusare kolgra botten. Mindre svart tomrum och mer atmosfar, men ocksa mindre kontrast at loggan och titeln.</p>
+  <div class="cards">
+    <div class="card"><span class="tag">Coming soon</span><h3>Warpack</h3>
+      <p>Build a warband from a shop, fit it into a backpack that never has enough room.</p></div>
+    <div class="card"><h3>Soulsmith</h3>
+      <p>A blacksmith's apprentice in a world that stopped making heroes.</p></div>
+    <div class="card"><h3>Bonecount</h3>
+      <p>The waves come, the bosses fall, and every bone you take home is currency.</p></div>
+  </div>
+  <p class="note">Botten <code>#18181a</code> &middot; panel <code>#232326</code> &middot;
+     ram <code>#36363a</code> &middot; dampad text <code>#a5a5a8</code> &middot;
+     dimma <code>rgba(192,192,196)</code><br>
+     Titel, guld och logga ar identiska i alla sex, sa bara omgivningen varierar.</p>
+</section>
+<script>
+(function(){
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+ var c=document.querySelector('canvas.sim'); if(!c) return;
+ var h=c.closest('.hero'), x=c.getContext('2d'); if(!x) return;
+ var W=0,H=0,puffs=[],drops=[],last=0;
+ function mkDrop(any){
+   var d=Math.random(), s=620+d*780;
+   return {x:Math.random()*(W+160)-80, y:any?Math.random()*H:-30-Math.random()*H*0.4,
+            s:s, len:9+d*24, a:0.020+d*0.038, w:0.6+d*0.5};
+ }
+ function build(){
+   var r=h.getBoundingClientRect(), p=Math.min(window.devicePixelRatio||1,2);
+   W=Math.max(1,r.width); H=Math.max(1,r.height);
+   c.width=Math.round(W*p); c.height=Math.round(H*p); x.setTransform(p,0,0,p,0,0);
+   puffs=[];
+   for(var i=0;i<16;i++){
+     var dp=i/15;
+     puffs.push({x:Math.random()*(W+400)-200,
+       y:H*(0.52+dp*0.48)+(Math.random()-0.5)*H*0.10,
+       rx:W*(0.20+Math.random()*0.30), ry:H*(0.06+Math.random()*0.09),
+       v:(Math.random()<0.5?-1:1)*(3+Math.random()*11),
+       a:0.022+dp*0.048+Math.random()*0.014, ph:Math.random()*6.2832});
+   }
+   puffs.sort(function(a,b){return a.y-b.y;});
+   drops=[];
+   var n=Math.round(Math.min(150,Math.max(38,W*H/9000)));
+   for(var k=0;k<n;k++) drops.push(mkDrop(true));
+ }
+ function frame(now){
+   requestAnimationFrame(frame);
+   var dt=Math.min(0.05,(now-last)/1000); last=now;
+   x.clearRect(0,0,W,H); x.globalCompositeOperation='lighter';
+   for(var i=0;i<puffs.length;i++){
+     var p=puffs[i]; p.x+=p.v*dt;
+     if(p.x-p.rx>W+60) p.x=-p.rx-60;
+     if(p.x+p.rx<-60)  p.x=W+p.rx+60;
+     var y=p.y+Math.sin(now/1000*0.11+p.ph)*H*0.012;
+     var g=x.createRadialGradient(p.x,y,0,p.x,y,p.rx);
+     g.addColorStop(0,   'rgba(192,192,196,'+p.a+')');
+     g.addColorStop(0.55,'rgba(192,192,196,'+(p.a*0.45)+')');
+     g.addColorStop(1,   'rgba(192,192,196,0)');
+     x.save(); x.translate(p.x,y); x.scale(1,p.ry/p.rx); x.translate(-p.x,-y);
+     x.fillStyle=g; x.beginPath(); x.arc(p.x,y,p.rx,0,6.2832); x.fill(); x.restore();
+   }
+   x.lineCap='round';
+   for(var r=0;r<drops.length;r++){
+     var q=drops[r]; q.y+=q.s*dt; q.x+=q.s*dt*0.16;
+     if(q.y-q.len>H || q.x-q.len>W+80){ drops[r]=mkDrop(false); continue; }
+     x.strokeStyle='rgba(216,212,204,'+q.a+')'; x.lineWidth=q.w;
+     x.beginPath(); x.moveTo(q.x,q.y); x.lineTo(q.x-q.len*0.16,q.y-q.len); x.stroke();
+   }
+   x.globalCompositeOperation='source-over';
+ }
+ build(); requestAnimationFrame(frame);
+ var t; window.addEventListener('resize',function(){clearTimeout(t);t=setTimeout(build,180);});
+})();
+</script></body></html>
