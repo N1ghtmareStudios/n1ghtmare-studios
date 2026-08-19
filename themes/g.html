@@ -1,12 +1,12 @@
 <!doctype html><html lang="sv"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Tema e: NATT | N1ghtmare Studios</title>
+<title>Tema g: SKIFFER | N1ghtmare Studios</title>
 <link rel="stylesheet" href="/fonts/charter.css">
 <style>
 :root{
-  --ground:#0d0a11; --raised:#191320; --rule:#2e2438;
-  --ink:#e7e4db; --ink-soft:#9a90a4; --gold:#c8922f;
+  --ground:#0b1013; --raised:#141c20; --rule:#233139;
+  --ink:#e7e4db; --ink-soft:#909aa0; --gold:#c8922f;
   --display:Charter,"Iowan Old Style",Georgia,serif;
   --body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
@@ -20,7 +20,7 @@ body{margin:0;background:var(--ground);color:var(--ink);
   letter-spacing:.12em;text-transform:uppercase;padding:8px 11px;
   border:1px solid transparent;border-radius:5px}
 .switch a:hover{color:var(--ink);border-color:var(--rule)}
-.switch a.e{color:var(--gold);border-color:var(--rule);background:var(--raised)}
+.switch a.g{color:var(--gold);border-color:var(--rule);background:var(--raised)}
 .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--rule)}
 .hero-art{position:absolute;inset:0;
   background:url(/press/images/n1ghtmare-studios-hero-art-soulsmith.jpg) center/cover;
@@ -73,8 +73,8 @@ code{background:var(--raised);border:1px solid var(--rule);border-radius:4px;
   </div>
 </header>
 <section class="sec">
-  <p class="eyebrow">Tema e &middot; NATT</p>
-  <p style="max-width:62ch;margin:0 0 26px;color:var(--ink-soft)">Djup plommon. Behaller mystiken som blatt gav utan att vara blatt, och star langst ifran vad andra studios gor.</p>
+  <p class="eyebrow">Tema g &middot; SKIFFER</p>
+  <p style="max-width:62ch;margin:0 0 26px;color:var(--ink-soft)">Nyans 202 grader. Narmast blatt av bryggorna, men skiftad ur den exakta ton alla andra anvander. Behaller kalla botten och komplementkontrasten mot guldet.</p>
   <div class="cards">
     <div class="card"><span class="tag">Coming soon</span><h3>Warpack</h3>
       <p>Build a warband from a shop, fit it into a backpack that never has enough room.</p></div>
@@ -83,9 +83,9 @@ code{background:var(--raised);border:1px solid var(--rule);border-radius:4px;
     <div class="card"><h3>Bonecount</h3>
       <p>The waves come, the bosses fall, and every bone you take home is currency.</p></div>
   </div>
-  <p class="note">Botten <code>#0d0a11</code> &middot; panel <code>#191320</code> &middot;
-     ram <code>#2e2438</code> &middot; dampad text <code>#9a90a4</code> &middot;
-     dimma <code>rgba(176,160,196)</code><br>
+  <p class="note">Botten <code>#0b1013</code> &middot; panel <code>#141c20</code> &middot;
+     ram <code>#233139</code> &middot; dampad text <code>#909aa0</code> &middot;
+     dimma <code>rgba(168,181,189)</code><br>
      Titel, guld och logga ar identiska i alla sex, sa bara omgivningen varierar.</p>
 </section>
 <script>
@@ -127,9 +127,9 @@ code{background:var(--raised);border:1px solid var(--rule);border-radius:4px;
      if(p.x+p.rx<-60)  p.x=W+p.rx+60;
      var y=p.y+Math.sin(now/1000*0.11+p.ph)*H*0.012;
      var g=x.createRadialGradient(p.x,y,0,p.x,y,p.rx);
-     g.addColorStop(0,   'rgba(176,160,196,'+p.a+')');
-     g.addColorStop(0.55,'rgba(176,160,196,'+(p.a*0.45)+')');
-     g.addColorStop(1,   'rgba(176,160,196,0)');
+     g.addColorStop(0,   'rgba(168,181,189,'+p.a+')');
+     g.addColorStop(0.55,'rgba(168,181,189,'+(p.a*0.45)+')');
+     g.addColorStop(1,   'rgba(168,181,189,0)');
      x.save(); x.translate(p.x,y); x.scale(1,p.ry/p.rx); x.translate(-p.x,-y);
      x.fillStyle=g; x.beginPath(); x.arc(p.x,y,p.rx,0,6.2832); x.fill(); x.restore();
    }
