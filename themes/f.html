@@ -32,8 +32,8 @@ body{margin:0;background:var(--ground);color:var(--ink);
 canvas.sim{position:absolute;inset:0;width:100%;height:100%;display:block}
 .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;
   padding:clamp(52px,10vw,92px) 22px;text-align:center}
-.mark{display:block;width:clamp(96px,15vw,148px);height:auto;margin:0 auto 14px;
-  filter:drop-shadow(0 6px 26px rgba(0,0,0,.65))}
+picture{display:block}
+.mark{display:block;width:clamp(112px,17.5vw,172px);height:auto;margin:-12px auto 4px}
 h1{font:400 clamp(32px,7.4vw,62px)/1.05 var(--display);letter-spacing:.07em;
   text-transform:uppercase;margin:0;color:#e3dccb}
 h1 em{font-style:normal;color:#dcae52}
@@ -63,8 +63,10 @@ code{background:var(--raised);border:1px solid var(--rule);border-radius:4px;
   <div class="hero-art"></div><div class="hero-veil"></div>
   <canvas class="sim"></canvas>
   <div class="wrap">
-    <img class="mark" src="/press/images/n1ghtmare-studios-logo.webp" alt=""
-         width="320" height="320" decoding="async">
+    <picture>
+      <source srcset="/img/logo.webp" type="image/webp">
+      <img class="mark" src="/img/logo.png" alt="" width="388" height="388" decoding="async">
+    </picture>
     <h1>N1ghtmare <em>Studios</em></h1>
     <div class="crest"><span></span><i></i><span></span></div>
     <p class="motto">Made in the dark.<b>Bring a light.</b></p>
