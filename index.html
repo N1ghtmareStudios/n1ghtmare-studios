@@ -46,25 +46,25 @@
    not an inversion. Both are redefined at token level only.
    ════════════════════════════════════════════════════════════════ */
 :root{
-  --ground:#0a0d14;         /* near-black, biased blue — ink, not soot */
-  --raised:#121722;
-  --rule:#232a39;
+  --ground:#100f0e;         /* near-black, warm grey: soot and ash, not ink */
+  --raised:#1a1917;
+  --rule:#2e2c28;
   --ink:#e7e4db;
-  --ink-soft:#8b93a5;       /* steel */
+  --ink-soft:#97928a;       /* steel */
   --gold:#c8922f;
   --gold-soft:#7d6024;
   --gold-ink:#150f04;       /* text on a gold field */
   --art-veil:.24;           /* hero art opacity */
   --art-tone:none;
-  --shot-edge:#232a39;
+  --shot-edge:#2e2c28;
   --display:Charter,"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
   --body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,sans-serif;
 }
 :root[data-theme="dark"]{
-  --ground:#0a0d14; --raised:#121722; --rule:#232a39;
-  --ink:#e7e4db; --ink-soft:#8b93a5;
+  --ground:#100f0e; --raised:#1a1917; --rule:#2e2c28;
+  --ink:#e7e4db; --ink-soft:#97928a;
   --gold:#c8922f; --gold-soft:#7d6024; --gold-ink:#150f04;
-  --art-veil:.24; --art-tone:none; --shot-edge:#232a39;
+  --art-veil:.24; --art-tone:none; --shot-edge:#2e2c28;
 }
 
 *{box-sizing:border-box}
@@ -209,7 +209,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
 /* gratisspelen har ingen konst att visa — en liten slinga får göra
    jobbet i stället, så korten inte står tomma bredvid Warpack       */
 .prev{display:block; width:100%; aspect-ratio:16/7; margin:0 0 16px;
-      border:1px solid var(--rule); border-radius:6px; background:#0d1019}
+      border:1px solid var(--rule); border-radius:6px; background:#111110}
 .card .tags{margin-bottom:11px; font-size:12.5px}
 .card p{margin:0 0 16px; color:var(--ink-soft); font-size:14.5px}
 
@@ -259,8 +259,8 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
 .lb.open{display:flex}
 .lb figure{margin:0; max-width:min(1100px,94vw); text-align:center}
 .lb img{max-width:100%; max-height:82vh; width:auto; height:auto; margin:0 auto;
-        border:1px solid #232a39; border-radius:6px; box-shadow:0 24px 80px rgba(0,0,0,.65)}
-.lb figcaption{color:#8b93a5; font:13px/1.5 var(--body); margin-top:12px; letter-spacing:.04em}
+        border:1px solid #2e2c28; border-radius:6px; box-shadow:0 24px 80px rgba(0,0,0,.65)}
+.lb figcaption{color:#97928a; font:13px/1.5 var(--body); margin-top:12px; letter-spacing:.04em}
 .lb button{appearance:none; position:absolute; background:none; border:none; cursor:pointer;
            color:#e7e4db; font:300 34px/1 var(--body); padding:14px;
            transition:color .15s; z-index:1}
@@ -730,9 +730,9 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       if (p.x + p.rx < -60) p.x = W + p.rx + 60;
       var y = p.y + Math.sin(now / 1000 * 0.11 + p.ph) * H * 0.012;  // långsam höjning
       var g = ctx.createRadialGradient(p.x, y, 0, p.x, y, p.rx);
-      g.addColorStop(0,    'rgba(148,170,205,' + p.a + ')');
-      g.addColorStop(0.55, 'rgba(132,152,188,' + (p.a * 0.45) + ')');
-      g.addColorStop(1,    'rgba(120,140,175,0)');
+      g.addColorStop(0,    'rgba(184,178,168,' + p.a + ')');
+      g.addColorStop(0.55, 'rgba(170,164,153,' + (p.a * 0.45) + ')');
+      g.addColorStop(1,    'rgba(158,152,142,0)');
       ctx.save();
       ctx.translate(p.x, y);
       ctx.scale(1, p.ry / p.rx);                 // platt till ett dimband
@@ -751,7 +751,7 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       if (q.y - q.len > H || q.x - q.len > W + 80){
         drops[r] = newDrop(false); continue;
       }
-      ctx.strokeStyle = 'rgba(206,216,232,' + q.a + ')';
+      ctx.strokeStyle = 'rgba(216,212,204,' + q.a + ')';
       ctx.lineWidth = q.w;
       ctx.beginPath();
       ctx.moveTo(q.x, q.y);
