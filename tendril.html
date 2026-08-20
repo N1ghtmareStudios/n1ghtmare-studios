@@ -1867,7 +1867,7 @@ function loop(now){
   // Fyll pa motivet sa lange fröt lever. 0,085 per bildruta ligger nara
   // det diffusionen ater bort vid standarddecay, sa bilden star still och
   // borjar losas upp forst nar pafyllningen tonar ut.
-  if(seedHold > 0 && hasStamp) drawStamp(0.085 * seedHold);
+  if(seedHold > 0 && hasStamp) drawStamp(0.09 * seedHold);
 
   display();
   if(showAgents) dots();                    // pedagogiskt: alla agenter som prickar
@@ -1875,9 +1875,11 @@ function loop(now){
   renderOverlay();                          // 2D-lager: hjälte, spår, kometsvans
 
   // frots-hojningen ebbar ut over fjorton sekunder
-  // Full styrka forsta fem sekunderna, sen mjuk nedtoning till noll vid
-  // fjorton.
-  seedHold = Math.min(1, Math.max(0, (14000 - (now - seedAt)) / 9000));
+  // Tva rattar for hur lange motivet star kvar:
+  //   35000 = hela forloppets langd i millisekunder
+  //   20000 = nedtoningens langd, sa platan blir 35000 - 20000 = 15 sekunder
+  // Full styrka i femton sekunder, sen mjuk upplosning fram till trettiofem.
+  seedHold = Math.min(1, Math.max(0, (35000 - (now - seedAt)) / 20000));
 
   frames++; acc += now - last; last = now;
   if(acc > 500){
