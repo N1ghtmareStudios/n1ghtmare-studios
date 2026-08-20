@@ -296,7 +296,7 @@ let SCALE = 2.0;
 
 // Hur mycket av frots-hojningen som ar kvar, 1 direkt efter en stampling
 // och 0 nar natet ater far ata som vanligt.
-let seedHold = 0, seedAt = -1e9;
+let seedHold = 0, seedAt = -1e9, hasStamp = false;
 // Renderskala fristaende fran SCALE. Justeras av bildfrekvensmatningen i
 // loop(); 1 = full upplosning.
 let quality = 1, qCheck = 0;
@@ -1298,9 +1298,7 @@ function diffuse(){
   gl.bindTexture(gl.TEXTURE_2D, trailTex[cur]);
   gl.uniform1i(uDiffuse.u_trail, 0);
   gl.uniform2f(uDiffuse.u_texel, 1/W, 1/H);
-  // Frot-hojning: strax efter en stampling behalls motivet langre.
-  // Math.max ger ett golv, sa ett hogre eget varde vinner alltid.
-  gl.uniform1f(uDiffuse.u_decay, P.decay + Math.max(0, 0.997 - P.decay) * seedHold);
+  gl.uniform1f(uDiffuse.u_decay, P.decay);
   gl.bindVertexArray(emptyVAO);
   gl.disable(gl.BLEND);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -1866,6 +1864,11 @@ function loop(now){
     updateGame(Math.min(0.05, (now - last) / 1000));
     if(gstate === 1 && (probeTick++ % 3) === 0) gameProbe();   // mät sporer (läser tillbaka från GPU)
   }
+  // Fyll pa motivet sa lange fröt lever. 0,085 per bildruta ligger nara
+  // det diffusionen ater bort vid standarddecay, sa bilden star still och
+  // borjar losas upp forst nar pafyllningen tonar ut.
+  if(seedHold > 0 && hasStamp) drawStamp(0.085 * seedHold);
+
   display();
   if(showAgents) dots();                    // pedagogiskt: alla agenter som prickar
   else if(sparks || follow) drawSparks();   // gnistor / medresenärer
@@ -1873,8 +1876,7 @@ function loop(now){
 
   // frots-hojningen ebbar ut over fjorton sekunder
   // Full styrka forsta fem sekunderna, sen mjuk nedtoning till noll vid
-  // fjorton. Platan behovs: diffusionspasset ar en 3x3-oskarpa som
-  // suddar formen aven nar nastan inget forsvinner per bildruta.
+  // fjorton.
   seedHold = Math.min(1, Math.max(0, (14000 - (now - seedAt)) / 9000));
 
   frames++; acc += now - last; last = now;
@@ -2045,21 +2047,16 @@ void main(){
 const progStamp = program(QUAD_VS, STAMP_FS);
 const uStamp = uni(progStamp);
 const stampTex = gl.createTexture();
-function stampField(canvas){
-  seedAt = performance.now();      // motivet ska sta kvar en stund
-  gl.bindTexture(gl.TEXTURE_2D, stampTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+// Ritar den redan uppladdade stampeln in i faltet. Bryts ut ur
+// stampField sa den kan koras varje bildruta utan att texturen laddas om.
+function drawStamp(amp){
   gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO[cur]);
   gl.viewport(0,0,W,H);
   gl.useProgram(progStamp);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, stampTex);
   gl.uniform1i(uStamp.u_img, 0);
-  gl.uniform1f(uStamp.u_amp, 1.5);
+  gl.uniform1f(uStamp.u_amp, amp);
   gl.uniform1f(uStamp.u_g, war ? 1 : 0);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE);
@@ -2067,6 +2064,21 @@ function stampField(canvas){
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   gl.bindVertexArray(null);
   gl.disable(gl.BLEND);
+}
+
+// Laddar upp bilden och slar an motivet. Darefter fyller loop() pa det
+// varje bildruta med avtagande styrka, sa formen haller sig skarp och
+// loses upp mjukt i stallet for att atas bort pa en halv sekund.
+function stampField(canvas){
+  gl.bindTexture(gl.TEXTURE_2D, stampTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  hasStamp = true;
+  seedAt = performance.now();
+  drawStamp(1.5);
 }
 let replaySeed = null;
 function armReplay(fn){
