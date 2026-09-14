@@ -137,6 +137,11 @@
     .sl{grid-template-columns:74px 1fr 42px}
   }
 </style>
+<!-- Labbets gemensamma panelutseende. Laddas efter sidans egen style sa
+     den vinner pa ordning, och delas av Tendril, Coil och Bleed. -->
+<link rel="stylesheet" href="/fonts/charter.css">
+<link rel="stylesheet" href="/lab.css">
+<script src="/lab.js" defer></script>
 </head>
 <body>
 
@@ -161,6 +166,7 @@ graphics driver or a hardware acceleration setting.</p></div>
   <div class="sl"><label for="s-v">Curl</label><input type="range" id="s-v" min="0" max="60" step="1"><output id="o-v"></output></div>
   <div class="sl"><label for="s-t">Thin</label><input type="range" id="s-t" min="0" max="100" step="1"><output id="o-t"></output></div>
   <div class="sl"><label for="s-s">Source</label><input type="range" id="s-s" min="0" max="100" step="1"><output id="o-s"></output></div>
+  <div class="sl"><label for="s-o">Soften</label><input type="range" id="s-o" min="0" max="100" step="1"><output id="o-o"></output></div>
   <div class="sl"><label for="s-e">Edge</label><input type="range" id="s-e" min="1" max="100" step="1"><output id="o-e"></output></div>
   <div class="sl"><label for="s-r">Relief</label><input type="range" id="s-r" min="0" max="100" step="1"><output id="o-r"></output></div>
   <div class="sl"><label for="s-d">Detail</label><input type="range" id="s-d" min="30" max="100" step="1"><output id="o-d"></output></div>
@@ -189,7 +195,7 @@ if(!gl || !gl.getExtension("EXT_color_buffer_float")){
   document.body.classList.add("nogl"); return;
 }
 
-const BUILD = "2026-09-14b";
+const BUILD = "2026-09-14c";
 $("ver").textContent = BUILD;
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -209,7 +215,7 @@ let SIM = 200, DYE = 900;
 let simW = 1, simH = 1, dyeW = 1, dyeH = 1;
 const JACOBI = 28;
 
-const P = { lift:46, curl:22, thin:34, source:38, edge:26, relief:44, detail:72 };
+const P = { lift:46, curl:22, thin:34, source:38, soft:16, edge:26, relief:44, detail:72 };
 
 const PALETTES = [
   { name:"Bone",  lo:[0.043,0.070,0.125], hi:[0.918,0.894,0.839] },
@@ -220,13 +226,13 @@ const PALETTES = [
 let pal = 0;
 
 const PRESETS = [
-  { name:"Plume",   lift:46, curl:22, thin:34, source:38, edge:26, relief:44, detail:72 },
+  { name:"Plume",   lift:46, curl:22, thin:34, source:38, soft:16, edge:26, relief:44, detail:72 },
   // Marmorering ar langsam, seg och laminar. Hog virvling ar raka
   // motsatsen: den ger turbulens, och turbulens ar inte monster.
-  { name:"Marble",  lift:24, curl:7,  thin:38, source:22, edge:7,  relief:72, detail:90 },
-  { name:"Smoke",   lift:62, curl:10, thin:64, source:52, edge:70, relief:18, detail:64 },
-  { name:"Suminag", lift:6,  curl:12, thin:20, source:8,  edge:6,  relief:60, detail:92 },
-  { name:"Boil",    lift:88, curl:52, thin:40, source:70, edge:34, relief:36, detail:66 },
+  { name:"Marble",  lift:24, curl:7,  thin:38, source:22, soft:22, edge:7,  relief:72, detail:90 },
+  { name:"Smoke",   lift:62, curl:10, thin:64, source:52, soft:34, edge:70, relief:18, detail:64 },
+  { name:"Suminag", lift:6,  curl:12, thin:20, source:8,  soft:12, edge:6,  relief:60, detail:92 },
+  { name:"Boil",    lift:88, curl:52, thin:40, source:70, soft:20, edge:34, relief:36, detail:66 },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -263,7 +269,7 @@ const MACCORMACK_FS = `#version 300 es
 precision highp float;
 uniform sampler2D uVel, uSrc, uFwd, uBack;
 uniform vec2 uVelTexel, uTexel;
-uniform float uDt, uDiss;
+uniform float uDt, uDiss, uSoft;
 in vec2 vUv; out vec4 o;
 void main(){
   vec2 c = vUv - uDt * texture(uVel, vUv).xy * uVelTexel;
@@ -277,7 +283,18 @@ void main(){
   float hi = max(max(s0, s1), max(s2, s3));
   float fwd = texture(uFwd, vUv).r;
   float err = texture(uSrc, vUv).r - texture(uBack, vUv).r;
-  o = vec4(clamp(fwd + 0.5 * err, lo, hi) * uDiss, 0.0, 0.0, 1.0);
+  float v = clamp(fwd + 0.5 * err, lo, hi);
+
+  // Diffusion, och skalet till att den behovs.
+  //
+  // En riktig vatska har molekylar som vandrar over gransytan hela tiden
+  // och slatar ut den. Var har ingen, och MacCormack ar dessutom byggd
+  // for att bevara skarpa, sa gransen viker sig i evigt finare veck utan
+  // att nagonsin komma ikapp sig sjalv. Har blandas resultatet en aning
+  // mot medelvardet av de fyra rutorna det hamtades ur, vilket ar just
+  // den utjamning som saknas. Noll ger det gamla beteendet exakt.
+  float avg = (s0 + s1 + s2 + s3) * 0.25;
+  o = vec4(mix(v, avg, uSoft) * uDiss, 0.0, 0.0, 1.0);
 }`;
 
 const DIVERGENCE_FS = `#version 300 es
@@ -692,6 +709,9 @@ function step(dt){
   gl.uniform2f(prog.mac.u.uTexel, dye.read.texel[0], dye.read.texel[1]);
   gl.uniform1f(prog.mac.u.uDt, dt);
   gl.uniform1f(prog.mac.u.uDiss, 1);
+  // Skalas med tidssteget, annars slatas bilden ut olika mycket beroende
+  // pa hur manga bildrutor datorn hinner med.
+  gl.uniform1f(prog.mac.u.uSoft, Math.min(0.9, P.soft / 100 * 26 * dt));
   blit(dye.write); dye.swap();
 }
 
@@ -732,7 +752,7 @@ addEventListener("keydown", e => { if(e.key === "r" || e.key === "R") seed(); })
 /* ═══════════════════════════════════════════════════════════════════
    Reglage
    ═══════════════════════════════════════════════════════════════════ */
-const HASH_KEYS = ["lift","curl","thin","source","edge","relief","detail"];
+const HASH_KEYS = ["lift","curl","thin","source","soft","edge","relief","detail"];
 let hashTimer = 0;
 function writeHash(){
   history.replaceState(null, "", "#" + HASH_KEYS.map(k => P[k]).concat(pal).join(","));
@@ -752,7 +772,7 @@ function readHash(){
   return true;
 }
 
-const IDS = { lift:"b", curl:"v", thin:"t", source:"s", edge:"e", relief:"r", detail:"d" };
+const IDS = { lift:"b", curl:"v", thin:"t", source:"s", soft:"o", edge:"e", relief:"r", detail:"d" };
 function syncUI(){
   for(const k in IDS){
     $("s-" + IDS[k]).value = P[k];

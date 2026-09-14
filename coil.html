@@ -139,6 +139,11 @@
     .sl{grid-template-columns:74px 1fr 42px}
   }
 </style>
+<!-- Labbets gemensamma panelutseende. Laddas efter sidans egen style sa
+     den vinner pa ordning, och delas av Tendril, Coil och Bleed. -->
+<link rel="stylesheet" href="/fonts/charter.css">
+<link rel="stylesheet" href="/lab.css">
+<script src="/lab.js" defer></script>
 </head>
 <body>
 
@@ -416,7 +421,7 @@ const PS_MAX = Math.min(gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] || 64, 5
 /* ═══════════════════════════════════════════════════════════════════
    Lage
    ═══════════════════════════════════════════════════════════════════ */
-const BUILD = "2026-09-10f";
+const BUILD = "2026-09-14";
 $("ver").textContent = BUILD;
 
 const P = { p:1, q:0, curl:1, twist:9, sides:0, girth:0.42, dots:52, size:19,

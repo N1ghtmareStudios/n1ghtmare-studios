@@ -1,0 +1,217 @@
+/* ═══════════════════════════════════════════════════════════════════
+   LAB CHROME
+   Delad av Tendril, Coil och Bleed.
+
+   Panelen var ett rundat kort som svavade over duken, med runda knappar
+   och runda reglagevred. Det ar den forvalda formen alla demosidor har,
+   och just darfor ser den ut som ingen. Det har ar i stallet en
+   apparatpanel: den sitter fast i kanten, den har rata horn, och den
+   bars av harfina linjer i stallet for av skuggor och rundningar.
+
+   Tre typsnitt gor jobbet. Charter, studions egen serif, satter namnet.
+   Sma versaler med brett teckenavstand markerar reglagen. Alla siffror
+   ar i fast bredd, sa de slutar hoppa nar de andras.
+
+   Laddas SIST i varje sida, efter sidans egen style, sa den vinner pa
+   ordning. Vardena i selektorerna ar hojda med body dar Tendrils gamla
+   regler annars skulle ta over.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root{
+  --lab-panel:#0a0e11;
+  --lab-cell:#0e1418;
+  --lab-cell-hot:#141b20;
+  --lab-rule:#1e272c;
+  --lab-ink:#e2e6e7;
+  --lab-dim:#79848b;
+  --lab-faint:#4d575d;
+  --lab-ghost:#384146;
+  --lab-glow:#dcae52;
+  --lab-serif:Charter,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --lab-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --lab-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+
+/* ── Panelen ──────────────────────────────────────────────────────── */
+body #panel{
+  position:fixed; z-index:4;
+  left:0; top:0; bottom:0; right:auto;
+  width:304px; max-width:88vw; margin:0;
+  padding:60px 20px 22px;              /* 60 uppe lamnar plats at vippan */
+  background:var(--lab-panel);
+  border:0; border-right:1px solid var(--lab-rule);
+  border-radius:0; box-shadow:none;
+  /* Ingen bakgrundsoskarpa. En blur over en duk som ritar om sig kostar
+     en omraknning varje bildruta, och en apparatpanel ska anda vara tat. */
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+  overflow-y:auto; overscroll-behavior:contain;
+  max-height:none;
+  transform:translateX(-100%);
+  transition:transform .34s cubic-bezier(.22,.75,.3,1);
+}
+body #panel.open{transform:none}
+body #panel.noanim{transition:none}
+@media (prefers-reduced-motion:reduce){ body #panel{transition:none} }
+
+/* ── Vippan: en flik i hornet, inte en knapp som flyter ───────────── */
+body #toggle{
+  position:fixed; z-index:6;
+  left:0; top:0; right:auto; bottom:auto;
+  width:auto; height:44px; padding:0 17px;
+  border:0; border-right:1px solid var(--lab-rule);
+  border-bottom:1px solid var(--lab-rule); border-radius:0;
+  background:var(--lab-panel); color:var(--lab-dim);
+  box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none;
+  display:flex; align-items:center; gap:10px;
+  font:500 10.5px/1 var(--lab-sans); letter-spacing:.2em; text-transform:uppercase;
+  cursor:pointer; transition:color .15s;
+  transform:none;
+}
+body #toggle:hover{ color:var(--lab-ink) }
+body #toggle b{ color:var(--lab-glow); font:400 13px/1 var(--lab-sans) }
+
+/* ── Signaturen over verket ───────────────────────────────────────── */
+body #title h1, body #mark h1{
+  margin:0; font:400 27px/1 var(--lab-serif);
+  letter-spacing:.01em; text-transform:none; color:var(--lab-ink);
+}
+body #title p, body #mark p{
+  margin:9px 0 0; font:500 9.5px/1.5 var(--lab-sans);
+  letter-spacing:.24em; text-transform:uppercase; color:var(--lab-faint);
+}
+body #title a, body #mark a{ color:inherit; text-decoration:none }
+body #title a:hover, body #mark a:hover{ color:var(--lab-glow) }
+
+/* ── Knappraderna som ett sammanhangande reglage ──────────────────
+   Ett gitter med en bildpunkts mellanrum over en linjefargad botten:
+   mellanrummen blir avdelare, och raden last som EN sak i stallet for
+   som fem losa piller. Sista radens celler vaxer ut, sa det aldrig
+   uppstar ett tomt hal dar bottnen lyser igenom.                     */
+body .presets, body .row, body #userpresets{
+  display:flex; flex-wrap:wrap; gap:1px;
+  background:var(--lab-rule);
+  border:1px solid var(--lab-rule);
+  margin:0 0 15px; padding:0;
+}
+body .presets button, body .row button, body #userpresets button{
+  flex:1 1 76px; min-width:0; min-height:36px; padding:11px 5px;
+  background:var(--lab-cell); border:0; border-radius:0;
+  color:var(--lab-dim);
+  font:500 10.5px/1 var(--lab-sans); letter-spacing:.15em; text-transform:uppercase;
+  cursor:pointer; transition:color .14s, background .14s;
+}
+body .presets button:hover, body .row button:hover, body #userpresets button:hover{
+  color:var(--lab-ink); background:var(--lab-cell-hot);
+}
+body .presets button.on, body .row button.on, body #userpresets button.on{
+  color:var(--lab-glow); background:var(--lab-cell-hot);
+  box-shadow:inset 0 -2px 0 var(--lab-glow);
+}
+
+/* ── Reglagen ─────────────────────────────────────────────────────
+   Etikett och varde pa samma rad, spaket pa hela bredden under. Den
+   gamla uppdelningen i tre kolumner klamde spaket till en tredjedel av
+   panelen, vilket bade sag trangt ut och gjorde det svarare att traffa
+   ratt varde. Markupen ar oforandrad: gittret placerar om delarna.   */
+body .sl{
+  display:grid; grid-template-columns:1fr auto;
+  align-items:baseline; gap:0 10px; margin:0 0 14px;
+}
+body .sl label{
+  grid-column:1; grid-row:1;
+  font:500 10px/1 var(--lab-sans); letter-spacing:.2em;
+  text-transform:uppercase; color:var(--lab-dim);
+}
+body .sl output{
+  grid-column:2; grid-row:1; text-align:right;
+  font:400 12px/1 var(--lab-mono); color:var(--lab-ink);
+  font-variant-numeric:tabular-nums;
+}
+body .sl input[type=range]{
+  grid-column:1 / -1; grid-row:2;
+  -webkit-appearance:none; appearance:none;
+  width:100%; height:16px; margin:5px 0 0;
+  background:transparent; cursor:pointer;
+}
+/* Den ifyllda delen kommer ur --f, som lab.js haller aktuell. */
+body .sl input[type=range]::-webkit-slider-runnable-track{
+  height:3px; border:0; border-radius:0;
+  background:linear-gradient(90deg,
+    var(--lab-glow) 0 var(--f,0%), var(--lab-rule) var(--f,0%) 100%);
+}
+body .sl input[type=range]::-moz-range-track{
+  height:3px; border:0; border-radius:0;
+  background:linear-gradient(90deg,
+    var(--lab-glow) 0 var(--f,0%), var(--lab-rule) var(--f,0%) 100%);
+}
+/* Vredet ar ett streck, inte en boll: det pekar pa ett varde i stallet
+   for att tacka det. Ramen i panelfarg later strecket sta fritt. */
+body .sl input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:3px; height:15px;
+  border:0; border-radius:0; margin-top:-6px;
+  background:var(--lab-ink);
+  box-shadow:0 0 0 3px var(--lab-panel);
+}
+body .sl input[type=range]::-moz-range-thumb{
+  width:3px; height:15px; border:0; border-radius:0;
+  background:var(--lab-ink);
+  box-shadow:0 0 0 3px var(--lab-panel);
+}
+body .sl input[type=range]:focus-visible::-webkit-slider-thumb{ background:var(--lab-glow) }
+body .sl input[type=range]:focus-visible::-moz-range-thumb{ background:var(--lab-glow) }
+
+/* ── Brodtext i panelen ───────────────────────────────────────────── */
+body .hint, body .uphint{
+  font:400 11px/1.65 var(--lab-sans); letter-spacing:.01em;
+  color:var(--lab-faint); margin:0 0 17px; text-transform:none;
+}
+
+/* ── Foten och avlasningen ────────────────────────────────────────── */
+body .foot{
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  margin:18px 0 0; padding:15px 0 0;
+  border-top:1px solid var(--lab-rule);
+}
+body .foot button{
+  min-height:34px; padding:9px 12px;
+  background:var(--lab-cell); border:1px solid var(--lab-rule); border-radius:0;
+  color:var(--lab-dim);
+  font:500 10.5px/1 var(--lab-sans); letter-spacing:.15em; text-transform:uppercase;
+  cursor:pointer; transition:color .14s, border-color .14s;
+}
+body .foot button:hover{ color:var(--lab-ink); border-color:var(--lab-faint) }
+body .foot button.on{ color:var(--lab-glow); border-color:var(--lab-glow); background:var(--lab-cell-hot) }
+body .foot span{
+  margin-left:auto; padding-left:8px;
+  font:400 10.5px/1.5 var(--lab-mono); color:var(--lab-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+/* ── Byggmarket ───────────────────────────────────────────────────── */
+body .build{
+  margin:16px 0 0; font:400 9.5px/1 var(--lab-mono);
+  letter-spacing:.13em; color:var(--lab-ghost); text-align:left;
+}
+body .build b{ font-weight:400; color:var(--lab-faint) }
+
+/* ── Telefon: panelen kommer underifran, vippan hamnar vid tummen ─── */
+@media (max-width:700px){
+  body #panel{
+    left:0; right:0; top:auto; bottom:0;
+    width:auto; max-width:none;
+    max-height:76vh;
+    padding:20px 18px calc(env(safe-area-inset-bottom,0px) + 20px);
+    border-right:0; border-top:1px solid var(--lab-rule);
+    transform:translateY(100%);
+  }
+  body #panel.open{ transform:none }
+  body #toggle{
+    left:auto; right:0; top:auto;
+    bottom:calc(env(safe-area-inset-bottom,0px));
+    height:50px; padding:0 20px;
+    border-right:0; border-bottom:0;
+    border-left:1px solid var(--lab-rule); border-top:1px solid var(--lab-rule);
+  }
+  body #title, body #mark{ top:14px; right:16px }
+  body #title h1, body #mark h1{ font-size:22px }
+}
