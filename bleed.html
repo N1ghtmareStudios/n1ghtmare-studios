@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bleed | N1ghtmare Studios Lab</title>
+<meta name="description" content="Two fluids pushed into each other, solved on your GPU. Pressure, vorticity and buoyancy, sixty times a second. Drag a finger through it.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="Bleed | N1ghtmare Studios Lab">
+<meta property="og:description" content="Two fluids pushed into each other, solved on your GPU.">
+<meta property="og:image" content="https://n1ghtmarestudios.com/og-2026-08.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --void:#06080a;
+    --chrome:#0d1216;
+    --edge:#233139;
+    --ink:#dfe3e4;
+    --dim:#7d888e;
+    --glow:#dcae52;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--void); color:var(--ink); overflow:hidden;
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  canvas{position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none}
+
+  #title{
+    position:fixed; z-index:3; top:16px; right:20px; text-align:right;
+    pointer-events:none; user-select:none;
+  }
+  #title h1{
+    margin:0; font:700 15px/1 ui-sans-serif,system-ui,sans-serif;
+    letter-spacing:.34em; text-transform:uppercase; color:var(--glow);
+  }
+  #title p{
+    margin:7px 0 0; font:11px/1 ui-sans-serif,system-ui,sans-serif;
+    letter-spacing:.22em; text-transform:uppercase; color:var(--dim);
+  }
+  #title a{color:var(--dim); text-decoration:none; pointer-events:auto}
+  #title a:hover{color:var(--glow)}
+
+  /* Panelen dockas till vanster, som i Coil och av samma skal: motivet
+     fyller hela duken, och mitten ar den enda plats den inte far sta. */
+  #panel{
+    position:fixed; z-index:4; left:12px; right:auto;
+    top:76px; bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+    width:318px; max-width:calc(100vw - 24px); margin:0;
+    background:color-mix(in srgb, var(--chrome) 96%, transparent);
+    border:1px solid var(--edge); border-radius:16px;
+    backdrop-filter:blur(10px); padding:16px 16px 18px;
+    transform:translateX(calc(-100% - 20px));
+    transition:transform .32s cubic-bezier(.3,.8,.4,1);
+    overflow-y:auto;
+  }
+  #panel.open{transform:none}
+  #panel.noanim{transition:none}
+
+  #toggle{
+    position:fixed; z-index:5; left:14px; top:14px;
+    height:50px; padding:0 18px; border-radius:14px;
+    background:color-mix(in srgb, var(--chrome) 96%, transparent);
+    border:2px solid var(--glow); color:var(--glow);
+    box-shadow:0 0 18px color-mix(in srgb, var(--glow) 40%, transparent);
+    backdrop-filter:blur(10px); cursor:pointer;
+    display:flex; align-items:center; gap:9px;
+    font:600 13px/1 ui-sans-serif,system-ui,sans-serif; letter-spacing:.14em;
+  }
+  #toggle b{font-size:18px; font-weight:400; line-height:1}
+  @media (prefers-reduced-motion:reduce){ #panel{transition:none} }
+
+  .row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px}
+  .row button{
+    flex:1 1 auto; min-width:78px; min-height:40px; padding:9px 6px;
+    background:#151d22; border:1px solid var(--edge); border-radius:10px;
+    color:var(--dim); font:600 11.5px/1 ui-sans-serif,system-ui,sans-serif;
+    letter-spacing:.13em; text-transform:uppercase; cursor:pointer;
+    transition:color .16s, border-color .16s;
+  }
+  .row button:hover{color:var(--ink)}
+  .row button.on{color:var(--glow); border-color:var(--glow); background:#1b2228}
+
+  .sl{display:grid; grid-template-columns:82px 1fr 44px; align-items:center;
+      gap:10px; margin-bottom:7px}
+  .sl label{font:11px/1 ui-sans-serif,system-ui,sans-serif; letter-spacing:.15em;
+            text-transform:uppercase; color:var(--dim)}
+  .sl output{font:12px/1 ui-monospace,Menlo,monospace; color:var(--ink);
+             text-align:right; font-variant-numeric:tabular-nums}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:28px;
+    background:transparent; cursor:pointer; margin:0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:2px; background:var(--edge)}
+  input[type=range]::-moz-range-track{height:2px; background:var(--edge)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+    background:var(--glow); margin-top:-8px; border:0;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:18px; height:18px; border-radius:50%; background:var(--glow); border:0;
+  }
+
+  .hint{font:10.5px/1.5 ui-sans-serif,system-ui,sans-serif; letter-spacing:.05em;
+        color:var(--dim); margin:-4px 0 14px}
+  .foot{display:flex; align-items:center; gap:8px; margin-top:14px;
+        padding-top:13px; border-top:1px solid var(--edge)}
+  .foot span{margin-left:auto; font:11px/1 ui-monospace,Menlo,monospace;
+             color:var(--dim); font-variant-numeric:tabular-nums}
+  .build{margin:16px 0 0; font:10.5px/1 ui-monospace,Menlo,monospace;
+         letter-spacing:.08em; color:#4d565b; text-align:right}
+  .build b{font-weight:400; color:var(--dim)}
+
+  #nogl{display:none; position:fixed; inset:0; place-items:center; padding:40px}
+  body.nogl #nogl{display:grid}
+  body.nogl #panel,body.nogl #toggle,body.nogl canvas{display:none}
+  #nogl p{max-width:520px; color:var(--dim); font-size:14px; line-height:1.6}
+
+  @media (max-width:600px){
+    #panel{
+      left:12px; right:12px; width:auto; max-width:560px; margin:0 auto;
+      top:auto; bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+      max-height:calc(100vh - 92px); padding:14px 14px 16px;
+      transform:translateY(calc(100% + 24px));
+    }
+    #panel.open{transform:none}
+    #toggle{
+      left:auto; right:14px; top:auto;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+      width:62px; height:62px; padding:0; border-radius:50%;
+      justify-content:center;
+    }
+    #toggle span{display:none}
+    #title{top:14px; right:16px}
+    .sl{grid-template-columns:74px 1fr 42px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="nogl"><p>Bleed solves a fluid on the graphics card, which needs WebGL2 and
+float render targets. Any browser from the last few years has both, so this is usually a
+graphics driver or a hardware acceleration setting.</p></div>
+
+<div id="title">
+  <h1>Bleed</h1>
+  <p><a href="/">N1ghtmare Studios</a> Lab</p>
+</div>
+
+<button id="toggle" aria-label="Controls"><b>&#10042;</b><span>CONTROLS</span></button>
+
+<div id="panel" class="open noanim">
+  <div class="row" id="presets"></div>
+  <p class="hint">Drag through it. The fluid remembers where your hand went.</p>
+
+  <div class="sl"><label for="s-b">Lift</label><input type="range" id="s-b" min="0" max="100" step="1"><output id="o-b"></output></div>
+  <div class="sl"><label for="s-v">Curl</label><input type="range" id="s-v" min="0" max="60" step="1"><output id="o-v"></output></div>
+  <div class="sl"><label for="s-t">Thin</label><input type="range" id="s-t" min="0" max="100" step="1"><output id="o-t"></output></div>
+  <div class="sl"><label for="s-s">Source</label><input type="range" id="s-s" min="0" max="100" step="1"><output id="o-s"></output></div>
+  <div class="sl"><label for="s-e">Edge</label><input type="range" id="s-e" min="1" max="100" step="1"><output id="o-e"></output></div>
+  <div class="sl"><label for="s-r">Relief</label><input type="range" id="s-r" min="0" max="100" step="1"><output id="o-r"></output></div>
+  <div class="sl"><label for="s-d">Detail</label><input type="range" id="s-d" min="30" max="100" step="1"><output id="o-d"></output></div>
+
+  <div class="row" id="palettes" style="margin-top:14px; margin-bottom:0"></div>
+  <p class="build">Build <b id="ver"></b></p>
+
+  <div class="foot">
+    <button id="reset" style="flex:0 0 auto; min-width:92px; min-height:38px; padding:9px 12px; background:#151d22; border:1px solid var(--edge); border-radius:10px; color:var(--dim); font:600 11.5px/1 ui-sans-serif,system-ui,sans-serif; letter-spacing:.13em; text-transform:uppercase; cursor:pointer">Reset</button>
+    <span id="hud">&mdash;</span>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const $ = id => document.getElementById(id);
+const cvs = $("c");
+const gl = cvs.getContext("webgl2", { antialias:false, alpha:false, depth:false,
+                                      preserveDrawingBuffer:false,
+                                      powerPreference:"high-performance" });
+// Halvflyttal maste ga att rendera TILL, inte bara lasa. Utan det finns
+// ingen plats att lagra hastighet och tryck mellan bildrutorna.
+if(!gl || !gl.getExtension("EXT_color_buffer_float")){
+  document.body.classList.add("nogl"); return;
+}
+
+const BUILD = "2026-09-14";
+$("ver").textContent = BUILD;
+
+/* ═══════════════════════════════════════════════════════════════════
+   Skalvarden
+
+   Hastigheten mats i simuleringsrutor per sekund, och BADA advektionerna
+   raknar med hastighetsnatets rutstorlek. Fargen bor pa ett finare nat,
+   men den flyttas alltsa lika langt i varlden som hastigheten sager, inte
+   lika manga av sina egna rutor. Det ar hela skalet till att ett grovt
+   flode kan bara en fin bild.
+
+   Simnatet gors proportionellt mot fonstret sa rutorna blir kvadratiska.
+   Trycklosningen anvander samma stencil i x och y, och den ar bara
+   korrekt om steget ar lika langt at bada hallen.
+   ═══════════════════════════════════════════════════════════════════ */
+let SIM = 200, DYE = 900;
+let simW = 1, simH = 1, dyeW = 1, dyeH = 1;
+const JACOBI = 28;
+
+const P = { lift:46, curl:22, thin:34, source:38, edge:26, relief:44, detail:72 };
+
+const PALETTES = [
+  { name:"Bone",  lo:[0.043,0.070,0.125], hi:[0.918,0.894,0.839] },
+  { name:"Ember", lo:[0.031,0.024,0.020], hi:[0.965,0.706,0.412] },
+  { name:"Frost", lo:[0.027,0.063,0.086], hi:[0.812,0.914,0.949] },
+  { name:"Ink",   lo:[0.949,0.933,0.898], hi:[0.055,0.075,0.110] },
+];
+let pal = 0;
+
+const PRESETS = [
+  { name:"Plume",   lift:46, curl:22, thin:34, source:38, edge:26, relief:44, detail:72 },
+  { name:"Marble",  lift:18, curl:46, thin:12, source:16, edge:12, relief:70, detail:88 },
+  { name:"Smoke",   lift:62, curl:10, thin:64, source:52, edge:70, relief:18, detail:64 },
+  { name:"Suminag", lift:8,  curl:34, thin:6,  source:0,  edge:8,  relief:58, detail:92 },
+  { name:"Boil",    lift:88, curl:52, thin:40, source:70, edge:34, relief:36, detail:66 },
+];
+
+/* ═══════════════════════════════════════════════════════════════════
+   Shaders
+   ═══════════════════════════════════════════════════════════════════ */
+const VS = `#version 300 es
+precision highp float;
+out vec2 vUv;
+void main(){
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  vUv = p;
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+// Halvsteg bakat langs hastigheten och las av dar. Enkelt, ovillkorligt
+// stabilt, och det ar just darfor det suddar: varje steg ar en
+// interpolation, och interpolationer slatar ut.
+const ADVECT_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uVel, uSrc;
+uniform vec2 uVelTexel;
+uniform float uDt, uDiss;
+in vec2 vUv; out vec4 o;
+void main(){
+  vec2 c = vUv - uDt * texture(uVel, vUv).xy * uVelTexel;
+  o = texture(uSrc, c) * uDiss;
+}`;
+
+// MacCormack: gor steget framat, gor det sedan bakat igen, och det som
+// inte kom hem ar felet. Halva felet dras av, och resultatet klams mot de
+// fyra rutor som slaget faktiskt hamtades ur. Utan den klampningen
+// overskjuter korrigeringen vid varje kant och falt ringer sonder.
+const MACCORMACK_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uVel, uSrc, uFwd, uBack;
+uniform vec2 uVelTexel, uTexel;
+uniform float uDt, uDiss;
+in vec2 vUv; out vec4 o;
+void main(){
+  vec2 c = vUv - uDt * texture(uVel, vUv).xy * uVelTexel;
+  vec2 g = c / uTexel - 0.5;
+  vec2 b = (floor(g) + 0.5) * uTexel;
+  float s0 = texture(uSrc, b).r;
+  float s1 = texture(uSrc, b + vec2(uTexel.x, 0.0)).r;
+  float s2 = texture(uSrc, b + vec2(0.0, uTexel.y)).r;
+  float s3 = texture(uSrc, b + uTexel).r;
+  float lo = min(min(s0, s1), min(s2, s3));
+  float hi = max(max(s0, s1), max(s2, s3));
+  float fwd = texture(uFwd, vUv).r;
+  float err = texture(uSrc, vUv).r - texture(uBack, vUv).r;
+  o = vec4(clamp(fwd + 0.5 * err, lo, hi) * uDiss, 0.0, 0.0, 1.0);
+}`;
+
+const DIVERGENCE_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uVel;
+uniform vec2 uTexel;
+in vec2 vUv; out vec4 o;
+void main(){
+  float l = texture(uVel, vUv - vec2(uTexel.x, 0.0)).x;
+  float r = texture(uVel, vUv + vec2(uTexel.x, 0.0)).x;
+  float b = texture(uVel, vUv - vec2(0.0, uTexel.y)).y;
+  float t = texture(uVel, vUv + vec2(0.0, uTexel.y)).y;
+  // Vaggarna ar tata: flodet ut genom kanten speglas tillbaka in.
+  vec2 c = texture(uVel, vUv).xy;
+  if(vUv.x - uTexel.x < 0.0) l = -c.x;
+  if(vUv.x + uTexel.x > 1.0) r = -c.x;
+  if(vUv.y - uTexel.y < 0.0) b = -c.y;
+  if(vUv.y + uTexel.y > 1.0) t = -c.y;
+  o = vec4(0.5 * (r - l + t - b), 0.0, 0.0, 1.0);
+}`;
+
+// Tryckekvationen loses genom att medelvardesbilda om och om. Varje varv
+// sprider information en ruta, sa antalet varv ar hur langt en storning
+// hinner tala om for resten av faltet att den finns.
+const JACOBI_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uP, uDiv;
+uniform vec2 uTexel;
+in vec2 vUv; out vec4 o;
+void main(){
+  float l = texture(uP, vUv - vec2(uTexel.x, 0.0)).x;
+  float r = texture(uP, vUv + vec2(uTexel.x, 0.0)).x;
+  float b = texture(uP, vUv - vec2(0.0, uTexel.y)).x;
+  float t = texture(uP, vUv + vec2(0.0, uTexel.y)).x;
+  o = vec4((l + r + b + t - texture(uDiv, vUv).x) * 0.25, 0.0, 0.0, 1.0);
+}`;
+
+// Det som gor floden till en vatska: dra bort tryckets lutning och det
+// som ar kvar kan inte langre pressa ihop sig nagonstans.
+const GRADIENT_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uP, uVel;
+uniform vec2 uTexel;
+in vec2 vUv; out vec4 o;
+void main(){
+  float l = texture(uP, vUv - vec2(uTexel.x, 0.0)).x;
+  float r = texture(uP, vUv + vec2(uTexel.x, 0.0)).x;
+  float b = texture(uP, vUv - vec2(0.0, uTexel.y)).x;
+  float t = texture(uP, vUv + vec2(0.0, uTexel.y)).x;
+  vec2 v = texture(uVel, vUv).xy - 0.5 * vec2(r - l, t - b);
+  // Tat vagg: ingen hastighet ut genom kanten.
+  if(vUv.x < uTexel.x || vUv.x > 1.0 - uTexel.x) v.x = 0.0;
+  if(vUv.y < uTexel.y || vUv.y > 1.0 - uTexel.y) v.y = 0.0;
+  o = vec4(v, 0.0, 1.0);
+}`;
+
+const CURL_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uVel;
+uniform vec2 uTexel;
+in vec2 vUv; out vec4 o;
+void main(){
+  float l = texture(uVel, vUv - vec2(uTexel.x, 0.0)).y;
+  float r = texture(uVel, vUv + vec2(uTexel.x, 0.0)).y;
+  float b = texture(uVel, vUv - vec2(0.0, uTexel.y)).x;
+  float t = texture(uVel, vUv + vec2(0.0, uTexel.y)).x;
+  o = vec4(0.5 * ((r - l) - (t - b)), 0.0, 0.0, 1.0);
+}`;
+
+// Tva krafter i samma pass.
+//
+// Virveltvang: natet ater upp sma virvlar snabbare an verkligheten gor,
+// sa de matas tillbaka. Kraften pekar mot tatare virvling och star
+// vinkelratt mot den, vilket ar riktningen en virvel skulle ha rullat at.
+//
+// Lyft: lattare vatska stiger och tyngre sjunker. Det ar hela orsaken
+// till fingrarna. En rak grans mellan tungt over latt kan inte besta:
+// minsta ojamnhet vaxer, for dar det latta trycker upp blir vagen dit
+// annu lattare.
+const FORCE_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uVel, uCurl, uDye;
+uniform vec2 uTexel;
+uniform float uDt, uVort, uLift, uDamp;
+in vec2 vUv; out vec4 o;
+void main(){
+  float l = abs(texture(uCurl, vUv - vec2(uTexel.x, 0.0)).x);
+  float r = abs(texture(uCurl, vUv + vec2(uTexel.x, 0.0)).x);
+  float b = abs(texture(uCurl, vUv - vec2(0.0, uTexel.y)).x);
+  float t = abs(texture(uCurl, vUv + vec2(0.0, uTexel.y)).x);
+  float c = texture(uCurl, vUv).x;
+
+  vec2 grad = vec2(r - l, t - b) * 0.5;
+  grad /= length(grad) + 1e-5;
+  vec2 f = vec2(grad.y, -grad.x) * c * uVort;
+
+  f.y += (texture(uDye, vUv).r - 0.5) * uLift;
+
+  vec2 v = texture(uVel, vUv).xy + f * uDt;
+  o = vec4(v * uDamp, 0.0, 1.0);
+}`;
+
+const SPLAT_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uSrc;
+uniform vec3 uValue;
+uniform vec2 uPoint;
+uniform float uRadius, uAspect, uReplace;
+in vec2 vUv; out vec4 o;
+void main(){
+  vec2 d = vUv - uPoint;
+  d.x *= uAspect;
+  float w = exp(-dot(d, d) / uRadius);
+  vec3 s = texture(uSrc, vUv).xyz;
+  // uReplace 0 lagger till (hastighet), 1 blandar mot (farg). Farg som
+  // adderas skenar over ett, och da har grans mellan de tva vatskorna
+  // ingen mening langre.
+  o = vec4(mix(s + uValue * w, mix(s, uValue, w), uReplace), 1.0);
+}`;
+
+// Startlaget: en nastan rak grans med en aning brus i, tungt over latt.
+// Rak till pixeln vore ett jamviktslage och ingenting skulle handa.
+const SEED_FS = `#version 300 es
+precision highp float;
+uniform float uSeed;
+in vec2 vUv; out vec4 o;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7)) + uSeed) * 43758.5453); }
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1,0)), f.x),
+             mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+}
+void main(){
+  float n = noise(vUv * 7.0) * 0.5 + noise(vUv * 19.0) * 0.25 + noise(vUv * 41.0) * 0.12;
+  float edge = 0.36 + (n - 0.43) * 0.10;
+  o = vec4(1.0 - smoothstep(edge - 0.012, edge + 0.012, vUv.y), 0.0, 0.0, 1.0);
+}`;
+
+const CLEAR_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uSrc;
+uniform float uK;
+in vec2 vUv; out vec4 o;
+void main(){ o = texture(uSrc, vUv) * uK; }`;
+
+const DISPLAY_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uDye;
+uniform vec2 uTexel;
+uniform vec3 uLo, uHi;
+uniform float uEdge, uRelief;
+in vec2 vUv; out vec4 o;
+void main(){
+  float c = texture(uDye, vUv).r;
+
+  // Lutningen i faltet ar ytans normal. Den ger vatskan en yta att fanga
+  // ljus i, och det ar den som gor skillnad pa farg och vatska.
+  float l = texture(uDye, vUv - vec2(uTexel.x, 0.0)).r;
+  float r = texture(uDye, vUv + vec2(uTexel.x, 0.0)).r;
+  float b = texture(uDye, vUv - vec2(0.0, uTexel.y)).r;
+  float t = texture(uDye, vUv + vec2(0.0, uTexel.y)).r;
+  vec2 g = vec2(r - l, t - b);
+
+  float m = smoothstep(0.5 - uEdge, 0.5 + uEdge, c);
+  vec3 col = mix(uLo, uHi, m);
+
+  vec3 n = normalize(vec3(g * 26.0, 1.0));
+  float lam = max(0.0, dot(n, normalize(vec3(-0.45, 0.62, 0.65))));
+  col *= 1.0 - uRelief * 0.55 + uRelief * lam * 1.15;
+  col += uRelief * pow(lam, 22.0) * 0.30;
+
+  float vig = smoothstep(0.30, 0.98, length((vUv - 0.5) * vec2(1.06, 1.0)));
+  o = vec4(col * (1.0 - vig * 0.34), 1.0);
+}`;
+
+/* ═══════════════════════════════════════════════════════════════════
+   Uppsattning
+   ═══════════════════════════════════════════════════════════════════ */
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s) + "\n" + src);
+  return s;
+}
+const vs = compile(gl.VERTEX_SHADER, VS);
+function program(fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, vs); gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {};
+  for(let i = 0, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < n; i++){
+    const name = gl.getActiveUniform(p, i).name;
+    u[name] = gl.getUniformLocation(p, name);
+  }
+  return { p, u };
+}
+
+const prog = {
+  advect:  program(ADVECT_FS),
+  mac:     program(MACCORMACK_FS),
+  div:     program(DIVERGENCE_FS),
+  jac:     program(JACOBI_FS),
+  grad:    program(GRADIENT_FS),
+  curl:    program(CURL_FS),
+  force:   program(FORCE_FS),
+  splat:   program(SPLAT_FS),
+  seed:    program(SEED_FS),
+  clear:   program(CLEAR_FS),
+  display: program(DISPLAY_FS),
+};
+const vao = gl.createVertexArray();
+
+function makeFBO(w, h, internal, format){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.viewport(0, 0, w, h);
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  return { tex, fbo, w, h, texel: [1 / w, 1 / h] };
+}
+function makeDouble(w, h, internal, format){
+  let a = makeFBO(w, h, internal, format), b = makeFBO(w, h, internal, format);
+  return {
+    get read(){ return a; }, get write(){ return b; },
+    swap(){ const t = a; a = b; b = t; },
+    dispose(){ [a, b].forEach(f => { gl.deleteTexture(f.tex); gl.deleteFramebuffer(f.fbo); }); }
+  };
+}
+
+let vel, dye, pres, div, curlT, tmpA, tmpB;
+function allocate(){
+  const aspect = innerWidth / Math.max(1, innerHeight);
+  // Simnatet foljer fonstrets form sa rutorna blir kvadratiska.
+  simH = Math.max(32, Math.round(SIM));
+  simW = Math.max(32, Math.round(SIM * aspect));
+  const d = Math.round(DYE * (0.35 + P.detail / 100 * 0.65));
+  dyeH = Math.max(64, d);
+  dyeW = Math.max(64, Math.round(d * aspect));
+
+  [vel, dye, pres].forEach(x => x && x.dispose());
+  [div, curlT, tmpA, tmpB].forEach(x => {
+    if(x){ gl.deleteTexture(x.tex); gl.deleteFramebuffer(x.fbo); }
+  });
+
+  vel   = makeDouble(simW, simH, gl.RG16F, gl.RG);
+  pres  = makeDouble(simW, simH, gl.R16F,  gl.RED);
+  dye   = makeDouble(dyeW, dyeH, gl.R16F,  gl.RED);
+  div   = makeFBO(simW, simH, gl.R16F, gl.RED);
+  curlT = makeFBO(simW, simH, gl.R16F, gl.RED);
+  tmpA  = makeFBO(dyeW, dyeH, gl.R16F, gl.RED);
+  tmpB  = makeFBO(dyeW, dyeH, gl.R16F, gl.RED);
+}
+
+function resize(){
+  // Kostnaden sitter i antalet rutor, inte i fonstrets bildpunkter, sa
+  // duken far vara full upplosning medan simuleringen halls i band.
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cvs.width  = Math.max(1, Math.round(innerWidth  * dpr));
+  cvs.height = Math.max(1, Math.round(innerHeight * dpr));
+  allocate();
+  seed();
+}
+
+function blit(target){
+  if(target){ gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo); gl.viewport(0, 0, target.w, target.h); }
+  else       { gl.bindFramebuffer(gl.FRAMEBUFFER, null);      gl.viewport(0, 0, cvs.width, cvs.height); }
+  gl.bindVertexArray(vao);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.bindVertexArray(null);
+}
+function bind(unit, tex){
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  return unit;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Simuleringen
+   ═══════════════════════════════════════════════════════════════════ */
+function seed(){
+  gl.useProgram(prog.seed.p);
+  gl.uniform1f(prog.seed.u.uSeed, Math.random() * 1000);
+  blit(dye.write); dye.swap();
+  // Hastigheten nollas: annars slapper ett aterstallt falt lost gamla
+  // strommar i en bild som inte langre hor ihop med dem.
+  gl.useProgram(prog.clear.p);
+  gl.uniform1i(prog.clear.u.uSrc, bind(0, vel.read.tex));
+  gl.uniform1f(prog.clear.u.uK, 0);
+  blit(vel.write); vel.swap();
+}
+
+function splat(x, y, dx, dy, amount){
+  const aspect = simW / simH;
+  gl.useProgram(prog.splat.p);
+  gl.uniform1i(prog.splat.u.uSrc, bind(0, vel.read.tex));
+  gl.uniform2f(prog.splat.u.uPoint, x, y);
+  gl.uniform3f(prog.splat.u.uValue, dx, dy, 0);
+  gl.uniform1f(prog.splat.u.uRadius, 0.00060);
+  gl.uniform1f(prog.splat.u.uAspect, aspect);
+  gl.uniform1f(prog.splat.u.uReplace, 0);
+  blit(vel.write); vel.swap();
+
+  if(amount === 0) return;
+  gl.useProgram(prog.splat.p);
+  gl.uniform1i(prog.splat.u.uSrc, bind(0, dye.read.tex));
+  gl.uniform2f(prog.splat.u.uPoint, x, y);
+  gl.uniform3f(prog.splat.u.uValue, amount, 0, 0);
+  gl.uniform1f(prog.splat.u.uRadius, 0.00030);
+  gl.uniform1f(prog.splat.u.uAspect, dyeW / dyeH);
+  gl.uniform1f(prog.splat.u.uReplace, 1);
+  blit(dye.write); dye.swap();
+}
+
+function step(dt){
+  gl.disable(gl.BLEND);
+
+  // Virvling
+  gl.useProgram(prog.curl.p);
+  gl.uniform1i(prog.curl.u.uVel, bind(0, vel.read.tex));
+  gl.uniform2f(prog.curl.u.uTexel, vel.read.texel[0], vel.read.texel[1]);
+  blit(curlT);
+
+  // Krafter: virveltvang och lyft
+  gl.useProgram(prog.force.p);
+  gl.uniform1i(prog.force.u.uVel,  bind(0, vel.read.tex));
+  gl.uniform1i(prog.force.u.uCurl, bind(1, curlT.tex));
+  gl.uniform1i(prog.force.u.uDye,  bind(2, dye.read.tex));
+  gl.uniform2f(prog.force.u.uTexel, vel.read.texel[0], vel.read.texel[1]);
+  gl.uniform1f(prog.force.u.uDt, dt);
+  gl.uniform1f(prog.force.u.uVort, P.curl * 0.9);
+  gl.uniform1f(prog.force.u.uLift, P.lift * 1.5);
+  // Exponentiellt i tid, inte per bildruta. En dampning per bildruta
+  // betyder att vatskan blir trogare pa en langsam dator, vilket ar fel
+  // sorts skillnad mellan tva maskiner.
+  gl.uniform1f(prog.force.u.uDamp, Math.exp(-P.thin * 0.021 * dt));
+  blit(vel.write); vel.swap();
+
+  // Divergens
+  gl.useProgram(prog.div.p);
+  gl.uniform1i(prog.div.u.uVel, bind(0, vel.read.tex));
+  gl.uniform2f(prog.div.u.uTexel, vel.read.texel[0], vel.read.texel[1]);
+  blit(div);
+
+  // Trycket behalls delvis mellan bildrutorna: losningen borjar da nara
+  // svaret i stallet for pa noll, och samma antal varv racker langre.
+  gl.useProgram(prog.clear.p);
+  gl.uniform1i(prog.clear.u.uSrc, bind(0, pres.read.tex));
+  gl.uniform1f(prog.clear.u.uK, 0.8);
+  blit(pres.write); pres.swap();
+
+  gl.useProgram(prog.jac.p);
+  gl.uniform2f(prog.jac.u.uTexel, pres.read.texel[0], pres.read.texel[1]);
+  gl.uniform1i(prog.jac.u.uDiv, bind(1, div.tex));
+  for(let i = 0; i < JACOBI; i++){
+    gl.uniform1i(prog.jac.u.uP, bind(0, pres.read.tex));
+    blit(pres.write); pres.swap();
+  }
+
+  gl.useProgram(prog.grad.p);
+  gl.uniform1i(prog.grad.u.uP,   bind(0, pres.read.tex));
+  gl.uniform1i(prog.grad.u.uVel, bind(1, vel.read.tex));
+  gl.uniform2f(prog.grad.u.uTexel, vel.read.texel[0], vel.read.texel[1]);
+  blit(vel.write); vel.swap();
+
+  // Hastigheten flyttas med sig sjalv. Enkel advektion racker har: det
+  // suddet syns inte, och virveltvanget lamnar tillbaka det den ater.
+  gl.useProgram(prog.advect.p);
+  gl.uniform2f(prog.advect.u.uVelTexel, vel.read.texel[0], vel.read.texel[1]);
+  gl.uniform1f(prog.advect.u.uDt, dt);
+  gl.uniform1i(prog.advect.u.uVel, bind(0, vel.read.tex));
+  gl.uniform1i(prog.advect.u.uSrc, bind(1, vel.read.tex));
+  gl.uniform1f(prog.advect.u.uDiss, 1);
+  blit(vel.write); vel.swap();
+
+  // Fargen flyttas med MacCormack. Har syns suddet direkt: det ar
+  // skillnaden mellan harfina slingor och rok.
+  const vt = vel.read.texel;
+  gl.useProgram(prog.advect.p);
+  gl.uniform2f(prog.advect.u.uVelTexel, vt[0], vt[1]);
+  gl.uniform1f(prog.advect.u.uDiss, 1);
+  gl.uniform1i(prog.advect.u.uVel, bind(0, vel.read.tex));
+  gl.uniform1f(prog.advect.u.uDt, dt);
+  gl.uniform1i(prog.advect.u.uSrc, bind(1, dye.read.tex));
+  blit(tmpA);
+  gl.uniform1f(prog.advect.u.uDt, -dt);
+  gl.uniform1i(prog.advect.u.uSrc, bind(1, tmpA.tex));
+  blit(tmpB);
+
+  gl.useProgram(prog.mac.p);
+  gl.uniform1i(prog.mac.u.uVel,  bind(0, vel.read.tex));
+  gl.uniform1i(prog.mac.u.uSrc,  bind(1, dye.read.tex));
+  gl.uniform1i(prog.mac.u.uFwd,  bind(2, tmpA.tex));
+  gl.uniform1i(prog.mac.u.uBack, bind(3, tmpB.tex));
+  gl.uniform2f(prog.mac.u.uVelTexel, vt[0], vt[1]);
+  gl.uniform2f(prog.mac.u.uTexel, dye.read.texel[0], dye.read.texel[1]);
+  gl.uniform1f(prog.mac.u.uDt, dt);
+  gl.uniform1f(prog.mac.u.uDiss, 1);
+  blit(dye.write); dye.swap();
+}
+
+function render(){
+  const pl = PALETTES[pal];
+  gl.useProgram(prog.display.p);
+  gl.uniform1i(prog.display.u.uDye, bind(0, dye.read.tex));
+  gl.uniform2f(prog.display.u.uTexel, dye.read.texel[0], dye.read.texel[1]);
+  gl.uniform3f(prog.display.u.uLo, pl.lo[0], pl.lo[1], pl.lo[2]);
+  gl.uniform3f(prog.display.u.uHi, pl.hi[0], pl.hi[1], pl.hi[2]);
+  gl.uniform1f(prog.display.u.uEdge, 0.004 + P.edge / 100 * 0.30);
+  gl.uniform1f(prog.display.u.uRelief, P.relief / 100);
+  blit(null);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Handen
+   ═══════════════════════════════════════════════════════════════════ */
+const pointers = new Map();
+cvs.addEventListener("pointerdown", e => {
+  cvs.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX / innerWidth, y: 1 - e.clientY / innerHeight, moved:false });
+});
+cvs.addEventListener("pointermove", e => {
+  const p = pointers.get(e.pointerId); if(!p) return;
+  const x = e.clientX / innerWidth, y = 1 - e.clientY / innerHeight;
+  const dx = (x - p.x) * 8000, dy = (y - p.y) * 8000;
+  p.x = x; p.y = y; p.moved = true;
+  // Fargen som handen lamnar vaxlar mellan de tva vatskorna, sa man kan
+  // rita bade det ljusa och det morka utan ett extra reglage.
+  splat(x, y, dx, dy, e.shiftKey ? 0.0 : 1.0);
+});
+function release(e){ pointers.delete(e.pointerId); }
+cvs.addEventListener("pointerup", release);
+cvs.addEventListener("pointercancel", release);
+addEventListener("keydown", e => { if(e.key === "r" || e.key === "R") seed(); });
+
+/* ═══════════════════════════════════════════════════════════════════
+   Reglage
+   ═══════════════════════════════════════════════════════════════════ */
+const HASH_KEYS = ["lift","curl","thin","source","edge","relief","detail"];
+let hashTimer = 0;
+function writeHash(){
+  history.replaceState(null, "", "#" + HASH_KEYS.map(k => P[k]).concat(pal).join(","));
+}
+function queueHash(){ clearTimeout(hashTimer); hashTimer = setTimeout(writeHash, 260); }
+function clampv(v, a, b){ return v < a ? a : v > b ? b : v; }
+function readHash(){
+  const raw = decodeURIComponent(location.hash.slice(1));
+  if(!raw) return false;
+  const v = raw.split(",").map(Number);
+  if(v.length < HASH_KEYS.length || v.some(x => !isFinite(x))) return false;
+  HASH_KEYS.forEach((k, i) => { P[k] = clampv(Math.round(v[i]), 0, 100); });
+  P.detail = clampv(P.detail, 30, 100);
+  P.curl = clampv(P.curl, 0, 60);
+  P.edge = clampv(P.edge, 1, 100);
+  if(v.length > HASH_KEYS.length) pal = clampv(Math.round(v[HASH_KEYS.length]), 0, PALETTES.length - 1);
+  return true;
+}
+
+const IDS = { lift:"b", curl:"v", thin:"t", source:"s", edge:"e", relief:"r", detail:"d" };
+function syncUI(){
+  for(const k in IDS){
+    $("s-" + IDS[k]).value = P[k];
+    $("o-" + IDS[k]).textContent = P[k];
+  }
+  document.querySelectorAll("#palettes button").forEach((b, i) => b.classList.toggle("on", i === pal));
+}
+for(const k in IDS){
+  $("s-" + IDS[k]).addEventListener("input", e => {
+    P[k] = parseFloat(e.target.value);
+    $("o-" + IDS[k]).textContent = P[k];
+    document.querySelectorAll("#presets button").forEach(b => b.classList.remove("on"));
+    // Detaljnivan ar natets storlek, sa den kraver en ny uppsattning.
+    if(k === "detail"){ allocate(); seed(); }
+    queueHash();
+  });
+}
+
+const presetRow = $("presets");
+PRESETS.forEach((pre, i) => {
+  const b = document.createElement("button");
+  b.textContent = pre.name;
+  b.onclick = () => {
+    const reDetail = pre.detail !== P.detail;
+    HASH_KEYS.forEach(k => { P[k] = pre[k]; });
+    syncUI();
+    if(reDetail){ allocate(); }
+    seed();
+    presetRow.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    queueHash();
+  };
+  if(i === 0) b.classList.add("on");
+  presetRow.appendChild(b);
+});
+const palRow = $("palettes");
+PALETTES.forEach((pl, i) => {
+  const b = document.createElement("button");
+  b.textContent = pl.name;
+  b.onclick = () => { pal = i; syncUI(); queueHash(); };
+  palRow.appendChild(b);
+});
+$("reset").onclick = () => seed();
+
+const panel = $("panel"), toggle = $("toggle"), toggleLbl = toggle.querySelector("span");
+toggle.onclick = () => { toggleLbl.textContent = panel.classList.toggle("open") ? "HIDE" : "CONTROLS"; };
+toggleLbl.textContent = "HIDE";
+requestAnimationFrame(() => panel.classList.remove("noanim"));
+
+addEventListener("resize", () => {
+  clearTimeout(resize._t);
+  resize._t = setTimeout(resize, 180);
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   Loopen
+   ═══════════════════════════════════════════════════════════════════ */
+const hud = $("hud");
+let last = performance.now(), frames = 0, acc = 0, srcClock = 0;
+
+function loop(now){
+  requestAnimationFrame(loop);
+  // Tidssteget klams. En flik som legat i bakgrunden kommer tillbaka med
+  // ett halvt dygn i dt, och en vatska som far ta det steget exploderar.
+  const dt = Math.min(0.022, Math.max(0.001, (now - last) / 1000));
+  last = now;
+
+  // Kallan langst ner haller det igang av sig sjalvt. Utan den stiger
+  // allt latt till toppen, lagrar sig, och sen star bilden still.
+  if(P.source > 0){
+    srcClock += dt;
+    const rate = 0.05 + (1 - P.source / 100) * 0.5;
+    if(srcClock > rate){
+      srcClock = 0;
+      const x = 0.1 + Math.random() * 0.8;
+      splat(x, 0.035, (Math.random() - 0.5) * 90, 120 + P.source * 3, 1);
+    }
+  }
+
+  step(dt);
+  render();
+
+  frames++; acc += dt;
+  if(acc > 0.5){
+    hud.textContent = simW + "x" + simH + " · " + dyeW + "x" + dyeH + " · " +
+                      Math.round(frames / acc) + " fps";
+    frames = 0; acc = 0;
+  }
+}
+
+if(readHash()) presetRow.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+syncUI();
+resize();
+requestAnimationFrame(t => { last = t; loop(t); });
+
+})();
+</script>
+</body>
+</html>
