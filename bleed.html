@@ -189,7 +189,7 @@ if(!gl || !gl.getExtension("EXT_color_buffer_float")){
   document.body.classList.add("nogl"); return;
 }
 
-const BUILD = "2026-09-14";
+const BUILD = "2026-09-14b";
 $("ver").textContent = BUILD;
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -221,9 +221,11 @@ let pal = 0;
 
 const PRESETS = [
   { name:"Plume",   lift:46, curl:22, thin:34, source:38, edge:26, relief:44, detail:72 },
-  { name:"Marble",  lift:18, curl:46, thin:12, source:16, edge:12, relief:70, detail:88 },
+  // Marmorering ar langsam, seg och laminar. Hog virvling ar raka
+  // motsatsen: den ger turbulens, och turbulens ar inte monster.
+  { name:"Marble",  lift:24, curl:7,  thin:38, source:22, edge:7,  relief:72, detail:90 },
   { name:"Smoke",   lift:62, curl:10, thin:64, source:52, edge:70, relief:18, detail:64 },
-  { name:"Suminag", lift:8,  curl:34, thin:6,  source:0,  edge:8,  relief:58, detail:92 },
+  { name:"Suminag", lift:6,  curl:12, thin:20, source:8,  edge:6,  relief:60, detail:92 },
   { name:"Boil",    lift:88, curl:52, thin:40, source:70, edge:34, relief:36, detail:66 },
 ];
 
@@ -614,7 +616,15 @@ function step(dt){
   gl.uniform1i(prog.force.u.uDye,  bind(2, dye.read.tex));
   gl.uniform2f(prog.force.u.uTexel, vel.read.texel[0], vel.read.texel[1]);
   gl.uniform1f(prog.force.u.uDt, dt);
-  gl.uniform1f(prog.force.u.uVort, P.curl * 0.9);
+  // Mattas av mot ett tak i stallet for att vaxa rakt.
+  //
+  // Virveltvang lamnar tillbaka virvlar som natet ater upp, och lagom
+  // mycket ger struktur. For mycket ger inte mer struktur utan brus: sma
+  // virvlar foder sma virvlar, faltet gar turbulent, och eftersom fargen
+  // halls skarp blir varje liten virvel en hard prick. Botten ar orord,
+  // sa allt som var lugnt ar sig likt; det ar bara toppen som slutar
+  // skruva sonder sig.
+  gl.uniform1f(prog.force.u.uVort, 38 * (1 - Math.exp(-P.curl / 26)));
   gl.uniform1f(prog.force.u.uLift, P.lift * 1.5);
   // Exponentiellt i tid, inte per bildruta. En dampning per bildruta
   // betyder att vatskan blir trogare pa en langsam dator, vilket ar fel
