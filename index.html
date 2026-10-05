@@ -24,6 +24,57 @@
 <meta name="twitter:title" content="N1ghtmare Studios | independent game studio">
 <meta name="twitter:description" content="Made in the dark. Bring a light. Dark fantasy games with deep systems and hard choices.">
 <meta name="twitter:image" content="https://n1ghtmarestudios.com/og-2026-08.jpg">
+<!-- Structured data: tells Google that the studio and Warpack on this page are the same entities as the Steam
+     store page, IGDB and Wikidata, and which picture belongs to the game (YouTube's game cards draw on Google's
+     game data and showed Warpack without art). The cover is the Steam library capsule, 600x900. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://n1ghtmarestudios.com/#studio",
+      "name": "N1ghtmare Studios",
+      "url": "https://n1ghtmarestudios.com/",
+      "logo": "https://n1ghtmarestudios.com/img/logo.png",
+      "foundingLocation": "Sweden",
+      "email": "contact@n1ghtmarestudios.com",
+      "sameAs": [
+        "https://x.com/n1ghtmare_s",
+        "https://www.tiktok.com/@n1ghtmarestudios"
+      ]
+    },
+    {
+      "@type": "VideoGame",
+      "@id": "https://n1ghtmarestudios.com/#warpack",
+      "name": "Warpack",
+      "url": "https://n1ghtmarestudios.com/",
+      "description": "An auto-battler roguelite with asynchronous PvP. Build a warband from a shop, fit it into a backpack that never has enough room, then send it out to fight the armies other players have left behind.",
+      "image": [
+        "https://n1ghtmarestudios.com/img/warpack-cover.jpg",
+        "https://n1ghtmarestudios.com/img/warpack-key-art.jpg"
+      ],
+      "screenshot": [
+        "https://n1ghtmarestudios.com/img/warpack-a-battle-in-progress.jpg",
+        "https://n1ghtmarestudios.com/img/warpack-the-shop-and-backpack.jpg"
+      ],
+      "genre": ["Auto battler", "Roguelite", "Strategy"],
+      "gamePlatform": "PC",
+      "operatingSystem": "Windows",
+      "applicationCategory": "Game",
+      "playMode": ["SinglePlayer", "MultiPlayer"],
+      "inLanguage": "en",
+      "author": { "@id": "https://n1ghtmarestudios.com/#studio" },
+      "publisher": { "@id": "https://n1ghtmarestudios.com/#studio" },
+      "sameAs": [
+        "https://store.steampowered.com/app/5016130/",
+        "https://www.igdb.com/games/warpack",
+        "https://www.wikidata.org/wiki/Q141642590"
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
 <script>
