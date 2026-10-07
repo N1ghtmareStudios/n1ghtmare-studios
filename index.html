@@ -342,7 +342,6 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
     <ul>
       <li><a href="#games">Games</a></li>
       <li><a href="#about">About</a></li>
-      <li><a href="#lab">Lab</a></li>
       <li><a href="#press">Press</a></li>
     </ul>
   </div>
@@ -527,12 +526,6 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
         </div>
       </div>
 
-      <div class="prose" style="margin-top:34px">
-        <p style="color:var(--ink-soft); font-size:14px">
-          Want to see how the graphics are made? The
-          <a href="/tendril.html">Lab</a> is open.
-        </p>
-      </div>
     </div><!-- /panel-free -->
 
     <div id="panel-forge" role="tabpanel" aria-labelledby="tab-forge" hidden>
@@ -569,7 +562,9 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
 </section>
 
 <!-- ══════════════════════ LAB ══════════════════════ -->
-<section class="sec" id="lab">
+<!-- Doljs tills nagon klickar tre ganger pa market i hero:n. Sidorna
+     ligger kvar pa sina adresser; det ar bara vagen hit som ar borta. -->
+<section class="sec" id="lab" hidden>
   <div class="wrap prose">
     <p class="eyebrow">The Lab</p>
     <h3>Some things we build just to watch them move.</h3>
@@ -1130,6 +1125,49 @@ h3{font:400 clamp(24px,4.2vw,34px)/1.15 var(--display); margin:0 0 6px;
       views.forEach(function(v){ if (!v.w) size(v); draw(v, t); });
     });
   } else requestAnimationFrame(frame);
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   Labbet ar ett paskagg.
+
+   Tre spel ligger under studions namn, och de drog uppmarksamhet fran
+   spelen som faktiskt ska saljas. De ar inte borttagna, bara olankade:
+   adresserna fungerar som forut, och den som hittar hit far behalla
+   dorren oppen.
+
+   Loggan ar stallet. Folk klickar pa loggor, och tre klick i rad ar for
+   avsiktligt for att ske av misstag. Ingen pekare, ingen hover, ingen
+   antydan: hittas den av en slump ar den inget agg.
+   ═══════════════════════════════════════════════════════════════════ */
+(function(){
+  const lab = document.getElementById("lab");
+  const mark = document.querySelector(".hero picture") || document.querySelector(".hero .mark");
+  if(!lab) return;
+  const KEY = "n1_lab";
+
+  function open(scroll){
+    if(!lab.hidden) return;
+    lab.hidden = false;
+    try { localStorage.setItem(KEY, "1"); } catch(e){}
+    if(scroll) lab.scrollIntoView({ behavior:"smooth", block:"start" });
+  }
+
+  // En gang funnen, alltid oppen. Att behova leta igen vore ett straff
+  // for att ha hittat.
+  let known = false;
+  try { known = localStorage.getItem(KEY) === "1"; } catch(e){}
+  if(known || location.hash === "#lab") open(location.hash === "#lab");
+
+  if(!mark) return;
+  let hits = 0, last = 0;
+  mark.addEventListener("click", () => {
+    const now = Date.now();
+    hits = (now - last < 1500) ? hits + 1 : 1;
+    last = now;
+    if(hits >= 3){ hits = 0; open(true); }
+  });
 })();
 </script>
 </body>

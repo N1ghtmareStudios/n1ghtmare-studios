@@ -171,6 +171,7 @@
   <div class="sl"><label for="s-r">Spin</label><input type="range" id="s-r" min="0" max="40" step="1"><output id="o-r"></output></div>
   <div class="sl"><label for="s-f">Flow</label><input type="range" id="s-f" min="0" max="40" step="1"><output id="o-f"></output></div>
   <div class="sl"><label for="s-c">Drift</label><input type="range" id="s-c" min="-30" max="30" step="1"><output id="o-c"></output></div>
+  <div class="sl"><label for="s-a">Phase</label><input type="range" id="s-a" min="0" max="359" step="1"><output id="o-a"></output></div>
   <div class="sl"><label for="s-i">Invert</label><input type="range" id="s-i" min="0" max="40" step="1"><output id="o-i"></output></div>
 
   <div class="row" id="palettes" style="margin-top:14px; margin-bottom:0"></div>
@@ -421,11 +422,11 @@ const PS_MAX = Math.min(gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] || 64, 5
 /* ═══════════════════════════════════════════════════════════════════
    Lage
    ═══════════════════════════════════════════════════════════════════ */
-const BUILD = "2026-09-14";
+const BUILD = "2026-10-07";
 $("ver").textContent = BUILD;
 
 const P = { p:1, q:0, curl:1, twist:9, sides:0, girth:0.42, dots:52, size:19,
-             spin:14, flow:10, drift:5, invert:0 };
+             spin:14, flow:10, drift:5, invert:0, phase:0 };
 const SIDES = [0, 3, 4, 5, 6, 8];
 const SIDE_NAMES = ["○", "3", "4", "5", "6", "8"];
 
@@ -441,16 +442,20 @@ const PRESETS = [
   // Ormen som bitit sig sjalv: en sluten ring, tjock kropp, fa och stora
   // parlor, inget spinn. Da ar drift det enda som ror sig, och det syns
   // som att kroppen rullar runt sin egen axel.
-  { name:"Ouroboros", p:1, q:0, curl:1.0, twist:0,  sides:0, girth:0.46, dots:5,  size:230, spin:0,  flow:0,  drift:26 },
-  { name:"Ring",      p:1, q:0, curl:1.0, twist:0,  sides:0, girth:0.42, dots:52, size:19,  spin:14, flow:14, drift:0  },
-  { name:"Twisted",   p:1, q:0, curl:1.0, twist:9,  sides:0, girth:0.42, dots:52, size:19,  spin:14, flow:10, drift:5  },
-  { name:"Serpent",   p:1, q:6, curl:1.0, twist:2,  sides:0, girth:0.26, dots:58, size:16,  spin:6,  flow:22, drift:9  },
-  { name:"Rosette",   p:1, q:5, curl:2.6, twist:0,  sides:0, girth:0.18, dots:46, size:22,  spin:8,  flow:14, drift:0  },
-  { name:"Whorl",     p:2, q:7, curl:2.3, twist:3,  sides:0, girth:0.13, dots:62, size:14,  spin:5,  flow:20, drift:6  },
-  { name:"Beads",     p:1, q:5, curl:2.4, twist:0,  sides:0, girth:0.16, dots:4,  size:250, spin:4,  flow:16, drift:7  },
-  { name:"Trefoil",   p:2, q:3, curl:1.0, twist:0,  sides:0, girth:0.30, dots:52, size:19,  spin:14, flow:16, drift:4  },
-  { name:"Spool",     p:3, q:2, curl:1.0, twist:4,  sides:0, girth:0.28, dots:52, size:19,  spin:14, flow:12, drift:7  },
-  { name:"Forged",    p:1, q:0, curl:1.0, twist:16, sides:2, girth:0.46, dots:44, size:24,  spin:10, flow:6,  drift:0  },
+  { name:"Ouroboros", p:1, q:0, curl:1.0, twist:0,  sides:0, girth:0.46, dots:5,  size:230, spin:0,  flow:0,  drift:26 , phase:0 },
+  // Agarens tunnel: en tat knut sedd rakt ner genom sin egen axel, med
+  // inversionen parkerad. Phase ar en gissning tills den ar uppmatt: dra
+  // i den och lanken i adressfaltet bar det exakta vardet.
+  { name:"Tunnel",    p:8, q:11, curl:0.85, twist:9, sides:1, girth:0.38, dots:11, size:61, spin:0, flow:0, drift:0, phase:180 },
+  { name:"Ring",      p:1, q:0, curl:1.0, twist:0,  sides:0, girth:0.42, dots:52, size:19,  spin:14, flow:14, drift:0  , phase:0 },
+  { name:"Twisted",   p:1, q:0, curl:1.0, twist:9,  sides:0, girth:0.42, dots:52, size:19,  spin:14, flow:10, drift:5  , phase:0 },
+  { name:"Serpent",   p:1, q:6, curl:1.0, twist:2,  sides:0, girth:0.26, dots:58, size:16,  spin:6,  flow:22, drift:9  , phase:0 },
+  { name:"Rosette",   p:1, q:5, curl:2.6, twist:0,  sides:0, girth:0.18, dots:46, size:22,  spin:8,  flow:14, drift:0  , phase:0 },
+  { name:"Whorl",     p:2, q:7, curl:2.3, twist:3,  sides:0, girth:0.13, dots:62, size:14,  spin:5,  flow:20, drift:6  , phase:0 },
+  { name:"Beads",     p:1, q:5, curl:2.4, twist:0,  sides:0, girth:0.16, dots:4,  size:250, spin:4,  flow:16, drift:7  , phase:0 },
+  { name:"Trefoil",   p:2, q:3, curl:1.0, twist:0,  sides:0, girth:0.30, dots:52, size:19,  spin:14, flow:16, drift:4  , phase:0 },
+  { name:"Spool",     p:3, q:2, curl:1.0, twist:4,  sides:0, girth:0.28, dots:52, size:19,  spin:14, flow:12, drift:7  , phase:0 },
+  { name:"Forged",    p:1, q:0, curl:1.0, twist:16, sides:2, girth:0.46, dots:44, size:24,  spin:10, flow:6,  drift:0  , phase:0 },
 ];
 
 // Vy
@@ -510,6 +515,7 @@ function syncUI(){
   $("s-f").value = P.flow;   $("o-f").textContent = P.flow;
   $("s-c").value = P.drift;  $("o-c").textContent = P.drift;
   $("s-i").value = P.invert; $("o-i").textContent = P.invert;
+  $("s-a").value = P.phase;  $("o-a").textContent = P.phase + "°";
   document.querySelectorAll("#palettes button").forEach((b, i) =>
     b.classList.toggle("on", i === pal));
 }
@@ -536,6 +542,7 @@ bind("s-r", "o-r", "spin",  same, v => v);
 bind("s-f", "o-f", "flow",  same, v => v);
 bind("s-c", "o-c", "drift", same, v => v);
 bind("s-i", "o-i", "invert", same, v => v);
+bind("s-a", "o-a", "phase",  same, v => v + "°");
 
 const presetRow = $("presets");
 PRESETS.forEach((pre, i) => {
@@ -546,6 +553,7 @@ PRESETS.forEach((pre, i) => {
     P.sides = pre.sides; P.girth = pre.girth;
     P.dots = pre.dots; P.size = pre.size;
     P.spin = pre.spin; P.flow = pre.flow; P.drift = pre.drift;
+    P.phase = pre.phase || 0; P.invert = 0;
     syncUI();
     presetRow.querySelectorAll("button").forEach(x => x.classList.remove("on"));
     b.classList.add("on");
@@ -587,7 +595,7 @@ $("shuffle").onclick = () => {
    och det ar formen som ar vard att spara, inte vinkeln.
    ═══════════════════════════════════════════════════════════════════ */
 const HASH_KEYS = ["p","q","curl","twist","sides","girth","dots","size",
-                   "spin","flow","drift","invert"];
+                   "spin","flow","drift","invert","phase"];
 const HASH_PCT = { curl:1, girth:1 };   // lagras som heltalsprocent
 let hashTimer = 0;
 
@@ -624,6 +632,7 @@ function readHash(){
   P.flow   = clamp(Math.round(P.flow), 0, 40);
   P.drift  = clamp(Math.round(P.drift), -30, 30);
   P.invert = clamp(Math.round(P.invert), 0, 40);
+  P.phase  = clamp(Math.round(P.phase || 0), 0, 359);
   return true;
 }
 
@@ -719,7 +728,10 @@ function loop(now){
   // utan nagot satt att ta sig tillbaka.
   if(P.invert > 0) invPh = (invPh + P.invert * 0.035 * dt) % TAU;
   else if(invPh !== 0){
-    const step = 1.6 * dt;
+    // Glider hem till noll sa vinkeln blir exakt den Phase pekar ut.
+    // Utan det parkerar den nagonstans mitt i varvet och Phase slutar
+    // betyda nagonting.
+    const step = 2.2 * dt;
     const home = invPh > Math.PI ? TAU : 0;
     invPh = Math.abs(home - invPh) <= step ? 0 : invPh + Math.sign(home - invPh) * step;
   }
@@ -752,7 +764,10 @@ function loop(now){
   gl.uniform1f(U.u_scale, (3 + P.girth) / (2 + P.curl + P.girth));
   gl.uniform1f(U.u_flow, flowPh);
   gl.uniform1f(U.u_drift, driftPh);
-  gl.uniform1f(U.u_invert, invPh % TAU);
+  // Phase ar var inversionen STAR, Invert ar hur fort den vandrar darifran.
+  // Forut fanns bara hastigheten, sa de vackra lagena mitt i varvet gick
+  // att se men aldrig att stanna pa, an mindre att spara i en lank.
+  gl.uniform1f(U.u_invert, (P.phase / 360 * TAU + invPh) % TAU);
   gl.uniform1f(U.u_aspect, W / Math.max(1, H));
   gl.uniform1f(U.u_focal, 3.9);
   gl.uniform1f(U.u_dist, dist);
