@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Warpack Codex</title>
+<meta name="description" content="Every unit, item, trait, commander and rule in Warpack, written from the game's own data.">
+<style>
+:root{
+  --bg:#0d0f14; --bg2:#12151c; --panel:#171b24; --panel2:#1d222d; --line:#2a303d; --line2:#3a4252;
+  --ink:#e8e6df; --ink2:#b4b6bd; --ink3:#7f8594; --gold:#dcb65c; --gold2:#f0d48a;
+  --common:#b9bec9; --rare:#6aa8f0; --epic:#b98af0; --legendary:#f0a04a;
+  --highcrest:#e4c463; --bonelegion:#9ed79f; --bloodhorde:#e8674f; --elves:#86bdf2; --dwarves:#eb9c4e; --general:#a7adba;
+  --good:#8fd694;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background-image:radial-gradient(1200px 500px at 50% -120px,#1c2233 0,transparent 70%)}
+a{color:var(--gold2)}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0}
+.wrap{max-width:1320px;margin:0 auto;padding:0 20px}
+header.top{padding:28px 0 14px}
+.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.brand h1{font-size:34px;letter-spacing:.14em;color:var(--gold);text-shadow:0 2px 0 #000}
+.brand h1 span{color:var(--ink);font-weight:400}
+.brand p{margin:0;color:var(--ink3);font-size:13px}
+.bar{position:sticky;top:0;z-index:20;background:rgba(13,15,20,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin:0 -20px;padding:10px 20px}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+nav.tabs button{background:none;border:1px solid transparent;color:var(--ink2);padding:7px 13px;border-radius:7px;font:inherit;font-weight:600;letter-spacing:.03em;cursor:pointer}
+nav.tabs button:hover{color:var(--ink);background:var(--panel)}
+nav.tabs button.on{color:#14110a;background:var(--gold);border-color:var(--gold2)}
+nav.tabs button i{font-style:normal;font-weight:500;font-size:12px;opacity:.7;margin-left:6px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.search{flex:1 1 260px;min-width:200px;position:relative}
+.search input{width:100%;background:var(--panel);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:9px 34px 9px 12px;font:inherit}
+.search input:focus{outline:2px solid var(--gold);outline-offset:-1px}
+.search button{position:absolute;right:4px;top:4px;bottom:4px;width:28px;border:0;background:none;color:var(--ink3);font-size:18px;cursor:pointer;display:none}
+.search.has button{display:block}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line2);background:var(--panel);color:var(--ink2);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.chip:hover{color:var(--ink)}
+.chip.on{background:var(--panel2);color:var(--ink);border-color:currentColor}
+.chip[data-f]{--c:var(--general)} .chip.on[data-f]{color:var(--c)}
+.chip::before{content:"";display:none}
+.chip[data-f]::before{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:7px}
+main{padding:22px 0 80px;min-height:60vh}
+.count{color:var(--ink3);font-size:13px;margin:0 0 14px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(330px,100%),1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr))}
+.card{min-width:0;overflow-wrap:anywhere;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 14px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--line2))}
+.head{display:flex;gap:12px;align-items:flex-start}
+.head .tt{flex:1;min-width:0}
+.name{font-family:Georgia,serif;font-size:17px;font-weight:600;line-height:1.2}
+.sub{color:var(--ink3);font-size:12.5px;margin-top:2px}
+.sub b{color:var(--c);font-weight:600}
+.cost{flex:none;color:var(--gold2);font-weight:700;font-size:14px;background:#2a2412;border:1px solid #5a4a1e;border-radius:6px;padding:1px 8px}
+.ico{display:inline-block;flex:none;background-repeat:no-repeat;border-radius:8px;background-color:#0b0d12;border:1px solid var(--line2)}
+.ico.none{background-image:linear-gradient(135deg,#1b2029,#12151c)}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.tag{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2);background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 7px;cursor:pointer}
+.tag:hover{color:var(--gold2);border-color:var(--gold)}
+ul.fx{list-style:none;margin:9px 0 0;padding:0}
+ul.fx li{padding:2px 0 2px 14px;position:relative;color:var(--ink)}
+ul.fx li::before{content:"";position:absolute;left:2px;top:.72em;width:5px;height:5px;border-radius:50%;background:var(--ink3)}
+ul.fx li.st{color:var(--good)} ul.fx li.st::before{background:var(--good)}
+ul.fx li.combo{color:var(--gold2)} ul.fx li.combo::before{background:var(--gold)}
+.forge{margin-top:9px;padding-top:8px;border-top:1px dashed var(--line2);font-size:13px;color:var(--ink2)}
+.forge b{color:var(--ink3);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.06em;margin-right:6px}
+.lnk{color:var(--gold2);cursor:pointer;border-bottom:1px dotted #7d6a35}
+.lnk:hover{color:#fff}
+.r-Common{color:var(--common)} .r-Rare{color:var(--rare)} .r-Epic{color:var(--epic)} .r-Legendary{color:var(--legendary)}
+.stats{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:10px}
+.stats div{background:var(--bg2);border:1px solid var(--line);border-radius:6px;text-align:center;padding:4px 2px}
+.stats b{display:block;font-size:14px}
+.stats span{display:block;font-size:10px;letter-spacing:.06em;color:var(--ink3);text-transform:uppercase}
+.asc{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.asc div{background:var(--bg2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:13px;color:var(--ink2)}
+.asc b{display:block;color:var(--gold2);font-family:Georgia,serif;font-size:14px;margin-bottom:2px}
+.lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin:11px 0 4px;font-weight:600}
+abbr{text-decoration:none;border-bottom:1px dotted var(--ink3);cursor:help}
+.sec{margin:0 0 34px}
+.sec>h2{font-size:24px;color:var(--gold);letter-spacing:.06em;margin-bottom:4px}
+.sec>h2 small{font:500 13px system-ui;color:var(--ink3);letter-spacing:0;margin-left:10px}
+.sec>p.lead{color:var(--ink2);margin:4px 0 14px;max-width:900px}
+.facbox{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:20px 22px;margin-bottom:22px;position:relative;overflow:hidden}
+.facbox::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--c)}
+.facbox h2{font-size:26px;color:var(--c);letter-spacing:.05em}
+.facbox h3{font-size:18px;color:var(--gold);letter-spacing:.1em;margin:18px 0 6px}
+.facbox .blurb{color:var(--ink2);margin:2px 0 0}
+.facbox .jump{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+dl.parts{display:grid;grid-template-columns:150px 1fr;gap:8px 16px;margin:10px 0 0}
+dl.parts dt{color:var(--ink);font-weight:600}
+dl.parts dd{margin:0;color:var(--ink2)}
+table{border-collapse:collapse;width:100%;margin:6px 0 4px;font-size:14px}
+th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);font-weight:600;padding:6px 10px;border-bottom:1px solid var(--line2)}
+td{padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink2)}
+td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+.tw{overflow-x:auto}
+ul.notes{margin:8px 0 0;padding-left:18px;color:var(--ink2)}
+ul.notes li{margin:2px 0}
+.qa{border-bottom:1px solid var(--line);padding:11px 0}
+.qa:last-child{border-bottom:0}
+.qa h4{margin:0 0 3px;font:600 15.5px system-ui;color:var(--ink)}
+.qa p{margin:0;color:var(--ink2);max-width:920px}
+.topic{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-bottom:16px}
+.topic h3{font-size:19px;color:var(--gold);letter-spacing:.08em;margin-bottom:2px}
+.tiers{margin-top:8px}
+.tier{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+.tier:first-child{border-top:0}
+.tier b{background:#2a2412;border:1px solid #5a4a1e;color:var(--gold2);border-radius:6px;text-align:center;height:24px;line-height:22px;font-size:13px}
+.tier div{color:var(--ink2);font-size:14px}
+.tier div span{display:block}
+.skill{padding:7px 0;border-top:1px solid var(--line)}
+.skill:first-of-type{border-top:0}
+.skill b{color:var(--ink)}
+.skill em{font-style:normal;font-size:10.5px;letter-spacing:.08em;color:var(--ink3);border:1px solid var(--line2);border-radius:4px;padding:0 5px;margin-left:7px;vertical-align:1px}
+.skill em.cap{color:var(--gold2);border-color:#5a4a1e}
+.skill p{margin:1px 0 0;color:var(--ink2);font-size:14px}
+details summary{cursor:pointer;color:var(--gold2);font-size:13px;margin-top:10px;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"+ "} details[open] summary::before{content:"- "}
+.empty{color:var(--ink3);padding:50px 0;text-align:center}
+footer{border-top:1px solid var(--line);color:var(--ink3);font-size:13px;padding:22px 0 40px}
+.f-highcrest{--c:var(--highcrest)} .f-bonelegion{--c:var(--bonelegion)} .f-bloodhorde{--c:var(--bloodhorde)} .f-elves{--c:var(--elves)} .f-dwarves{--c:var(--dwarves)} .f-general{--c:var(--general)}
+@media (max-width:640px){
+  .wrap{padding:0 16px} .bar{margin:0 -16px;padding:8px 16px}
+  .brand h1{font-size:26px} .grid,.grid.wide{grid-template-columns:minmax(0,1fr)}
+  dl.parts{grid-template-columns:1fr;gap:2px 0} dl.parts dd{margin-bottom:8px}
+  .stats{grid-template-columns:repeat(4,minmax(0,1fr))} .asc{grid-template-columns:minmax(0,1fr)}
+  nav.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none} nav.tabs button{white-space:nowrap;flex:none}
+  td:first-child{white-space:normal}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>WARPACK <span>CODEX</span></h1>
+      <p>Game version 1.0. Built 2026-11-16 from the game's own data: every number here is read out of the build.</p>
+    </div>
+  </header>
+  <div class="bar">
+    <nav class="tabs" id="tabs"></nav>
+    <div class="filters">
+      <div class="search" id="searchbox"><input id="q" type="search" placeholder="Search everything: a unit, an item, a word on a card" autocomplete="off"><button id="qx" title="Clear" aria-label="Clear search">&times;</button></div>
+      <div class="chips" id="facs"></div>
+      <div class="chips" id="extra"></div>
+    </div>
+  </div>
+  <main id="view"></main>
+  <footer>Warpack is made by N1ghtmare Studios. This page is generated from the game's code with every build, so it cannot fall behind it.</footer>
+</div>
+<script src="codex-data.js"></script>
+<script>
+(function(){
+"use strict";
+const D = window.CODEX;
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const FAC = D.facNames, FORDER = D.factions.map(f => f.id);
+const IDX = {};
+for (const k in D.art) { IDX[k] = {}; D.art[k].ids.forEach((id, i) => IDX[k][id] = i); }
+
+// Keywords in card text carry their glossary line as a hover.
+const KW = {}; D.keywords.forEach(k => KW[k.k] = k.d);
+const KWRE = new RegExp("\\b(" + Object.keys(KW).sort((a, b) => b.length - a.length).map(k => k.replace(/ /g, "\\s")).join("|") + ")\\b", "g");
+const rich = s => esc(s).replace(KWRE, m => `<abbr title="${esc(KW[m.replace(/\s/g, " ")] || "")}">${m}</abbr>`);
+
+function ico(kind, id, px) {
+  const a = D.art[kind], i = a ? IDX[kind][id] : undefined;
+  if (i === undefined) return `<span class="ico none" style="width:${px}px;height:${px}px"></span>`;
+  const x = (i % a.cols) * px, y = Math.floor(i / a.cols) * px;
+  return `<span class="ico" style="width:${px}px;height:${px}px;background-image:url(img/${kind}.webp);background-size:${a.cols * px}px auto;background-position:-${x}px -${y}px"></span>`;
+}
+const tname = t => D.traitNames[t] || (t.charAt(0).toUpperCase() + t.slice(1));
+const lnk = (tab, q, label) => `<span class="lnk" data-go="${tab}" data-q="${esc(q)}">${esc(label || q)}</span>`;
+
+// ---------------------------------------------------------------- state
+const TABS = [
+  ["rules", "How it works"], ["factions", "Factions"], ["units", "Units"], ["items", "Items"], ["traits", "Traits"],
+  ["commanders", "Commanders"], ["keystones", "Keystones"], ["provisions", "Provisions"], ["keywords", "Keywords"],
+];
+const S = { tab: "rules", q: "", fac: "all", rarity: "all", source: "all", sort: "cost" };
+
+// one lowercase haystack per entry, built once
+const hay = (...xs) => xs.flat(3).filter(Boolean).join(" ").toLowerCase();
+D.units.forEach(u => u._h = hay(u.n, u.role, FAC[u.f], u.t.map(tname), u.t, u.ab, u.in, u.asc.map(a => [a.n, a.d])));
+D.items.forEach(i => i._h = hay(i.n, i.r, FAC[i.f], i.t, i.s, i.x, i.k, i.fr, i.to, i.p ? "part machine" : ""));
+D.traits.forEach(t => t._h = hay(t.n, t.id, t.f.map(f => FAC[f]), t.tiers.map(x => x.x)));
+D.itemSyn.forEach(t => t._h = hay(t.n, t.id, FAC[t.f], "item synergy", t.tiers.map(x => x.x)));
+D.commanders.forEach(c => c._h = hay(c.n, FAC[c.f], c.d, c.start, c.skills.map(s => [s.n, s.d, s.path]), c.oaths.map(o => [o.q, o.n, o.d])));
+D.keystones.forEach(k => k._h = hay(k.n, k.d, FAC[k.f]));
+D.provisions.forEach(p => p._h = hay(p.n, p.a));
+D.keywords.forEach(k => k._h = hay(k.k, k.d));
+D.rules.forEach(t => t.qa.forEach(x => x._h = hay(t.h, x.q, x.a)));
+D.factions.forEach(f => f._h = hay(f.n, f.blurb, f.sys ? [f.sys.name, f.sys.lead, f.sys.parts, f.sys.tables.map(t => [t.h, t.rows]), f.sys.notes] : ""));
+
+const words = () => S.q.toLowerCase().split(/\s+/).filter(Boolean);
+const hit = e => { const w = words(); for (let i = 0; i < w.length; i++) if (e._h.indexOf(w[i]) < 0) return false; return true; };
+const facOk = f => S.fac === "all" || f === S.fac || (Array.isArray(f) && f.indexOf(S.fac) >= 0);
+
+const LIST = {
+  rules: () => D.rules.map(t => ({ t, qa: t.qa.filter(hit) })).filter(x => x.qa.length),
+  factions: () => D.factions.filter(f => facOk(f.id) && hit(f)),
+  units: () => D.units.filter(u => facOk(u.f) && hit(u)),
+  items: () => D.items.filter(i => facOk(i.f) && hit(i) && (S.rarity === "all" || i.r === S.rarity) && (S.source === "all" || (S.source === "forged") === (i.fr.length > 0))),
+  traits: () => D.traits.filter(t => facOk(t.f) && hit(t)).concat(D.itemSyn.filter(t => facOk(t.f) && hit(t)).map(t => Object.assign({ item: 1 }, t))),
+  commanders: () => D.commanders.filter(c => facOk(c.f) && hit(c)),
+  keystones: () => D.keystones.filter(k => facOk(k.f) && hit(k)),
+  provisions: () => D.provisions.filter(hit),
+  keywords: () => D.keywords.filter(hit),
+};
+const size = (tab, rows) => tab === "rules" ? rows.reduce((n, x) => n + x.qa.length, 0) : rows.length;
+
+// ---------------------------------------------------------------- cards
+const facSub = f => `<b>${esc(FAC[f] || f)}</b>`;
+function unitCard(u) {
+  const st = [["HP", u.hp], ["Damage", u.dmg], ["Every", u.iv + " s"], ["Armor", u.ar], ["Dodge", u.dg + "%"], ["Range", u.rg <= 1.5 ? "Melee" : u.rg], ["Mana", u.mn || "-"]];
+  return `<article class="card f-${u.f}">
+    <div class="head">${ico("units", u.id, 72)}<div class="tt"><div class="name">${esc(u.n)}</div><div class="sub">${facSub(u.f)} · ${esc(u.role)}</div>
+      <div class="tags">${u.t.map(t => `<span class="tag" data-go="units" data-q="${esc(tname(t))}">${esc(tname(t))}</span>`).join("")}</div></div><span class="cost">${u.c}g</span></div>
+    <div class="stats">${st.map(s => `<div><b>${esc(s[1])}</b><span>${s[0]}</span></div>`).join("")}</div>
+    ${u.ab || u.in.length ? `<ul class="fx">${u.ab ? `<li>Spell: ${rich(u.ab)}</li>` : ""}${u.in.map(x => `<li>${rich(x.charAt(0).toUpperCase() + x.slice(1))}</li>`).join("")}</ul>` : ""}
+    ${u.asc.length ? `<div class="lbl">Ascensions at level 5: choose one</div><div class="asc">${u.asc.map(a => `<div><b>${esc(a.n)}</b>${rich(a.d)}</div>`).join("")}</div>` : ""}
+  </article>`;
+}
+function itemCard(i) {
+  const src = i.p ? "Machine part" : i.fr.length ? "Forged" : "Shop";
+  return `<article class="card f-${i.f}">
+    <div class="head">${ico("items", i.id, 56)}<div class="tt"><div class="name r-${i.r}">${esc(i.n)}</div><div class="sub">${i.r} · ${facSub(i.f)} · ${src}</div>
+      <div class="tags">${i.t.map(t => `<span class="tag" data-go="items" data-q="${esc(t)}">${esc(t)}</span>`).join("")}</div></div>${i.fr.length ? "" : `<span class="cost">${i.c}g</span>`}</div>
+    <ul class="fx">${i.s.map(x => `<li class="st">${rich(x)}</li>`).join("")}${i.x.map(x => `<li>${rich(x)}</li>`).join("")}${i.k ? `<li class="combo">${rich(i.k)}</li>` : ""}</ul>
+    ${i.fr.length ? `<div class="forge"><b>Forged from</b>${i.fr.map(n => lnk("items", n)).join(" + ")}</div>` : ""}
+    ${i.to.length ? `<div class="forge"><b>Forges into</b>${i.to.map(n => lnk("items", n)).join(", ")}</div>` : ""}
+  </article>`;
+}
+function traitCard(t) {
+  const f = Array.isArray(t.f) ? t.f : [t.f];
+  return `<article class="card f-${f[0]}"><div class="head"><div class="tt"><div class="name">${esc(t.n)}</div>
+    <div class="sub">${t.item ? "Units carrying a " + esc(t.id) + " item · " : ""}${f.map(x => `<b class="f-${x}" style="color:var(--c)">${esc(FAC[x])}</b>`).join(", ")}</div></div>
+    <span class="lnk" data-go="${t.item ? "items" : "units"}" data-q="${esc(t.item ? t.id : t.n)}">${t.item ? "items" : "units"}</span></div>
+    <div class="tiers">${t.tiers.map(x => `<div class="tier"><b>${x.n}</b><div>${x.x.map(l => `<span>${rich(l)}</span>`).join("")}</div></div>`).join("")}</div></article>`;
+}
+function commanderCard(c) {
+  return `<article class="card f-${c.f}"><div class="head">${ico("units", c.id, 72)}<div class="tt"><div class="name">${esc(c.n)}</div><div class="sub">${facSub(c.f)}${c.start ? " · starts with " + lnk("units", c.start) : ""}</div>
+    <ul class="fx"><li>${rich(c.d)}</li></ul></div></div>
+    <div class="lbl">Skills (${c.skills.length})</div>
+    ${c.skills.map(s => `<div class="skill"><b>${esc(s.n)}</b><em class="${s.cap ? "cap" : ""}">${esc(s.path)}</em><p>${rich(s.d)}</p></div>`).join("")}
+    ${c.oaths.length ? `<details${S.q ? " open" : ""}><summary>Oaths (${c.oaths.length})</summary>${c.oaths.map(o => `<div class="skill"><b>${esc(o.q)}</b><p>${o.n ? `<span style="color:var(--gold2)">${esc(o.n)}:</span> ` : ""}${rich(o.d)}</p></div>`).join("")}</details>` : ""}
+  </article>`;
+}
+const keystoneCard = k => `<article class="card f-${k.f}"><div class="head">${ico("relics", k.id, 56)}<div class="tt"><div class="name">${esc(k.n)}</div><div class="sub">${facSub(k.f)}</div><ul class="fx"><li>${rich(k.d.charAt(0).toUpperCase() + k.d.slice(1))}</li></ul></div></div></article>`;
+const provisionCard = p => `<article class="card f-general"><div class="head">${ico("items", p.id, 56)}<div class="tt"><div class="name">${esc(p.n)}</div><div class="sub">Provision · used once in every fight</div>
+  <ul class="fx"><li>${rich(p.a)}</li>${p.b !== p.a ? `<li style="color:var(--ink3)">Picked after fight ${D.provisionRounds[1]}: ${rich(p.b)}</li>` : ""}</ul></div></div></article>`;
+const keywordCard = k => `<article class="card f-general"><div class="name" style="color:var(--gold2);letter-spacing:.06em">${esc(k.k)}</div><ul class="fx"><li>${esc(k.d)}</li></ul></article>`;
+
+function table(t) {
+  return `<div class="lbl">${esc(t.h)}</div><div class="tw"><table><thead><tr>${t.cols.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+    <tbody>${t.rows.map(r => `<tr>${r.map((c, i) => `<td>${i ? rich(c) : esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function factionBox(f) {
+  const s = f.sys, n = k => D[k].filter(x => x.f === f.id).length;
+  return `<section class="facbox f-${f.id}"><h2>${esc(f.n)}</h2><p class="blurb">${esc(f.blurb)}</p>
+    <div class="jump">${[["units", "units"], ["items", "items"], ["commanders", "commanders"], ["keystones", "keystones"]].map(x => `<button class="chip" data-go="${x[0]}" data-fac="${f.id}">${n(x[0])} ${x[1]}</button>`).join("")}
+      <button class="chip" data-go="traits" data-fac="${f.id}">traits</button></div>
+    ${s ? `<h3>${esc(s.name)}</h3><p class="blurb">${rich(s.lead)}</p>
+      <dl class="parts">${s.parts.map(p => `<dt>${esc(p[0])}</dt><dd>${rich(p[1])}</dd>`).join("")}</dl>
+      ${s.tables.map(table).join("")}
+      <div class="lbl">Worth knowing</div><ul class="notes">${s.notes.map(x => `<li>${rich(x)}</li>`).join("")}</ul>` : ""}
+  </section>`;
+}
+
+// ---------------------------------------------------------------- render
+const byFaction = (rows, card, cls) => {
+  const groups = (S.fac === "all" ? FORDER.concat(["general"]) : [S.fac]).map(f => [f, rows.filter(r => (Array.isArray(r.f) ? r.f[0] : r.f) === f)]).filter(g => g[1].length);
+  return groups.map(g => `<section class="sec f-${g[0]}"><h2 style="color:var(--c)">${esc(FAC[g[0]])}<small>${g[1].length}</small></h2><div class="grid ${cls || ""}">${g[1].map(card).join("")}</div></section>`).join("");
+};
+const RENDER = {
+  rules: rows => `<p class="count">The questions that come up most, answered with the numbers the game runs on.</p>` + rows.map(x => `<section class="topic"><h3>${esc(x.t.h)}</h3>${x.qa.map(q => `<div class="qa"><h4>${esc(q.q)}</h4><p>${rich(q.a)}</p></div>`).join("")}</section>`).join(""),
+  factions: rows => `<p class="count">Five armies. You pick one for a run and your shop sells only its units. Each has a system of its own.</p>` + rows.map(factionBox).join(""),
+  units: rows => {
+    const k = S.sort, s = rows.slice().sort((a, b) => k === "name" ? a.n.localeCompare(b.n) : (a.c - b.c) || a.n.localeCompare(b.n));
+    return byFaction(s, unitCard);
+  },
+  items: rows => {
+    const R = { Common: 0, Rare: 1, Epic: 2, Legendary: 3 };
+    return byFaction(rows.slice().sort((a, b) => (R[a.r] - R[b.r]) || (a.c - b.c) || a.n.localeCompare(b.n)), itemCard);
+  },
+  traits: rows => {
+    const u = rows.filter(r => !r.item), i = rows.filter(r => r.item);
+    return (u.length ? `<section class="sec"><h2>Unit synergies<small>${u.length}</small></h2><p class="lead">${esc(D.synergyLead)}</p><div class="grid">${u.map(traitCard).join("")}</div></section>` : "")
+         + (i.length ? `<section class="sec"><h2>Item synergies<small>${i.length}</small></h2><p class="lead">Counted by units that carry at least one item with the tag. The bonus goes to the units carrying it.</p><div class="grid">${i.map(traitCard).join("")}</div></section>` : "");
+  },
+  commanders: rows => byFaction(rows, commanderCard, "wide"),
+  keystones: rows => byFaction(rows, keystoneCard),
+  provisions: rows => `<p class="count">Shown as picked after fight ${D.provisionRounds[0]}. Later picks are larger.</p><div class="grid">${rows.map(provisionCard).join("")}</div>`,
+  keywords: rows => `<div class="grid">${rows.map(keywordCard).join("")}</div>`,
+};
+const FACTABS = { factions: 1, units: 1, items: 1, traits: 1, commanders: 1, keystones: 1 };
+
+function chip(label, on, attrs) { return `<button class="chip${on ? " on" : ""}" ${attrs}>${esc(label)}</button>`; }
+function draw() {
+  const lists = {}; TABS.forEach(t => lists[t[0]] = LIST[t[0]]());
+  $("#tabs").innerHTML = TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? "on" : ""}">${t[1]}${S.q ? `<i>${size(t[0], lists[t[0]])}</i>` : ""}</button>`).join("");
+  $("#facs").innerHTML = FACTABS[S.tab] ? chip("All factions", S.fac === "all", 'data-setfac="all"') + FORDER.concat(S.tab === "items" || S.tab === "keystones" || S.tab === "traits" ? ["general"] : []).map(f => `<button class="chip f-${f}${S.fac === f ? " on" : ""}" data-f="${f}" data-setfac="${f}" style="--c:var(--${f})">${esc(FAC[f])}</button>`).join("") : "";
+  let x = "";
+  if (S.tab === "items") x = ["all", "Common", "Rare", "Epic", "Legendary"].map(r => chip(r === "all" ? "Any rarity" : r, S.rarity === r, `data-set="rarity" data-v="${r}"`)).join("")
+      + [["all", "Shop and forge"], ["shop", "Sold"], ["forged", "Forged"]].map(r => chip(r[1], S.source === r[0], `data-set="source" data-v="${r[0]}"`)).join("");
+  if (S.tab === "units") x = [["cost", "By price"], ["name", "By name"]].map(r => chip(r[1], S.sort === r[0], `data-set="sort" data-v="${r[0]}"`)).join("");
+  $("#extra").innerHTML = x;
+  const rows = lists[S.tab], n = size(S.tab, rows);
+  $("#view").innerHTML = n ? RENDER[S.tab](rows) : `<p class="empty">Nothing here matches. ${S.q ? "Other tabs show how many matches they hold." : ""}</p>`;
+  $("#searchbox").classList.toggle("has", !!S.q);
+  const h = "#" + S.tab + (S.q ? "?q=" + encodeURIComponent(S.q) : "");
+  if (location.hash !== h) history.replaceState(null, "", h);
+}
+function go(tab, q, fac) {
+  S.tab = tab; if (q !== undefined) { S.q = q; $("#q").value = q; } if (fac) S.fac = fac;
+  if (!FACTABS[tab]) S.fac = "all"; if (S.fac === "general" && (tab === "units" || tab === "commanders" || tab === "factions")) S.fac = "all";
+  draw(); window.scrollTo(0, 0);
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-tab],[data-setfac],[data-set],[data-go]"); if (!t) return;
+  if (t.dataset.tab) return go(t.dataset.tab);
+  if (t.dataset.setfac) { S.fac = t.dataset.setfac; return draw(); }
+  if (t.dataset.set) { S[t.dataset.set] = t.dataset.v; return draw(); }
+  if (t.dataset.go) return go(t.dataset.go, t.dataset.q !== undefined ? t.dataset.q : "", t.dataset.fac || (t.dataset.q !== undefined ? "all" : undefined));
+});
+let timer; $("#q").addEventListener("input", e => { clearTimeout(timer); timer = setTimeout(() => { S.q = e.target.value.trim(); draw(); }, 90); });
+$("#qx").addEventListener("click", () => { S.q = ""; $("#q").value = ""; draw(); $("#q").focus(); });
+function fromHash() {
+  const m = /^#([a-z]+)(?:\?q=(.*))?$/.exec(location.hash);
+  if (m && LIST[m[1]]) { S.tab = m[1]; S.q = m[2] ? decodeURIComponent(m[2]) : ""; $("#q").value = S.q; }
+  draw();
+}
+window.addEventListener("hashchange", fromHash);
+fromHash();
+})();
+</script>
+</body>
+</html>
